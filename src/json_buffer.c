@@ -225,11 +225,11 @@ static int encode_tree(buffer_t *buffer, const json_t *node,
     {
         unsigned char more = node->size > i + 1;
 
-        CHECK(encode_node(buffer, node->child + i, depth, indent, more));
+        CHECK(encode_node(buffer, &node->child[i], depth, indent, more));
         if (node->child[i].size > 0)
         {
-            CHECK(encode_tree(buffer, node->child + i, depth + 1, indent));
-            CHECK(encode_edge(buffer, node->child + i, depth, indent, more));
+            CHECK(encode_tree(buffer, &node->child[i], depth + 1, indent));
+            CHECK(encode_edge(buffer, &node->child[i], depth, indent, more));
         }
     }
     return 1;

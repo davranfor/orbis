@@ -178,7 +178,7 @@ json_t *json_decode(char *str)
         // Only the first child pointer need to be wired
         if (builder.node->size > 0)
         {
-            builder.node->child = builder.node + 1;
+            builder.node->child = &builder.node[1];
         }
         return builder.node;
     }
