@@ -12,10 +12,8 @@ struct json
     char *key;
     union
     {
-        struct json *child;
-        char *string;
-        double number;
-        struct { unsigned child, magic; } base;
+        struct json *child; char *string; double number;
+        struct { unsigned index, span; } base;
     };
     unsigned type, size;
 };

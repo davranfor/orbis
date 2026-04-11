@@ -30,13 +30,13 @@ static int build(const json_event_t *event)
 {
     json_builder_t *builder = event->cookie;
 
-    if (event->type & JSON_END_ITERABLE)
+    if (event->type & JSON_ITERABLE_END)
     {
         unsigned index = builder->depth[event->depth];
 
         if (builder->node[index].size > 0)
         {
-            builder->node[index].base.magic = builder->size - index;
+            builder->node[index].base.span = builder->size - index;
         }
         return 1;
     }
@@ -129,18 +129,18 @@ static json_t *fixup(const json_t *source, unsigned size)
             continue;
         }
 
-        unsigned child = node->base.child + 1;
+        unsigned cursor = node->base.index + 1;
 
         node->child = &target[writer]; // Real pointer to first child
         for (unsigned i = 0; i < node->size; i++)
         {
-            target[writer] = source[child];
+            target[writer] = source[cursor];
             // Containers carry their source index for their own expansion
-            if (source[child].type & JSON_ITERABLE)
+            if (source[cursor].type & JSON_ITERABLE)
             {
-                target[writer].base.child = child;
+                target[writer].base.index = cursor;
             }
-            child += source[child].size > 0 ? source[child].base.magic : 1;
+            cursor += source[cursor].size > 0 ? source[cursor].base.span : 1;
             writer++;
         }
     }

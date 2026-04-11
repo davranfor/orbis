@@ -114,7 +114,7 @@ static int parse_object(json_event_t *event)
         return 0;
     }
     event->key = NULL;
-    event->type = JSON_END_OBJECT;
+    event->type = JSON_OBJECT_END;
     event->iter = skip_spaces(event->iter + 1);
     return event->callback(event);
 }
@@ -153,7 +153,7 @@ static int parse_array(json_event_t *event)
         return 0;
     }
     event->key = NULL;
-    event->type = JSON_END_ARRAY;
+    event->type = JSON_ARRAY_END;
     event->iter = skip_spaces(event->iter + 1);
     return event->callback(event);
 }

@@ -18,13 +18,13 @@ int print(const json_event_t *event)
         case JSON_OBJECT:
             printf("{\n");
             break;
-        case JSON_END_OBJECT:
+        case JSON_OBJECT_END:
             printf("}\n");
             break;
         case JSON_ARRAY:
             printf("[\n");
             break;
-        case JSON_END_ARRAY:
+        case JSON_ARRAY_END:
             printf("]\n");
             break;
         case JSON_STRING:
