@@ -13,7 +13,7 @@ struct json
     union
     {
         struct json *child; char *string; double number;
-        struct { unsigned index, span; } base;
+        struct { unsigned index, span; };
     };
     unsigned type, size;
 };

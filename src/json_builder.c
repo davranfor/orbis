@@ -36,7 +36,7 @@ static int build(const json_event_t *event)
 
         if (builder->node[index].size > 0)
         {
-            builder->node[index].base.span = builder->size - index;
+            builder->node[index].span = builder->size - index;
         }
         return 1;
     }
@@ -129,7 +129,7 @@ static json_t *fixup(const json_t *source, unsigned size)
             continue;
         }
 
-        unsigned cursor = node->base.index + 1;
+        unsigned cursor = node->index + 1;
 
         node->child = &target[writer];
         for (unsigned i = 0; i < node->size; i++)
@@ -137,9 +137,9 @@ static json_t *fixup(const json_t *source, unsigned size)
             target[writer] = source[cursor];
             if (source[cursor].type & JSON_ITERABLE)
             {
-                target[writer].base.index = cursor;
+                target[writer].index = cursor;
             }
-            cursor += source[cursor].size > 0 ? source[cursor].base.span : 1;
+            cursor += source[cursor].size > 0 ? source[cursor].span : 1;
             writer++;
         }
     }
