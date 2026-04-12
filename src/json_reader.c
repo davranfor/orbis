@@ -340,22 +340,22 @@ static int equal(const json_t *a, const json_t *b)
 }
 
 /* json_equal helper */
-static int equal_children(const json_t *a, const json_t *b)
+static int equal_children(const json_t *pa, const json_t *pb)
 {
-    for (unsigned i = 0; i < a->size; i++)
+    for (unsigned i = 0; i < pa->size; i++)
     {
-        const json_t *c = &a->child[i];
-        const json_t *d = &b->child[i];
+        const json_t *a = &pa->child[i];
+        const json_t *b = &pb->child[i];
 
-        if (!equal(c, d))
+        if (!equal(a, b))
         {
             return 0;
         }
-        if ((c->key != NULL) && strcmp(c->key, d->key))
+        if ((a->key != NULL) && strcmp(a->key, b->key))
         {
             return 0;
         }
-        if ((c->size > 0) && !equal_children(c, d))
+        if (!equal_children(a, b))
         {
             return 0;
         }
@@ -366,16 +366,88 @@ static int equal_children(const json_t *a, const json_t *b)
 /* Returns 1 if 'a' and 'b' and his children are equal, 0 otherwise */
 int json_equal(const json_t *a, const json_t *b)
 {
-    if ((a != NULL) && (b != NULL))
+    if ((a == NULL) || (b == NULL))
     {
-        if (!equal(a, b))
-        {
+        return a == b;
+    }
+    if (!equal(a, b))
+    {
+        return 0;
+    }
+    return equal_children(a, b);
+}
+
+/* json_compare helper */
+static int compare(const json_t *a, const json_t *b)
+{
+    if (a->type != b->type)
+    {
+        return a->type > b->type ? 1 : -1;
+    }
+    if (a->size != b->size)
+    {
+        return a->size > b->size ? 1 : -1;
+    }
+    switch (a->type)
+    {
+        case JSON_STRING:
+            return strcmp(a->string, b->string);
+        case JSON_INTEGER:
+        case JSON_REAL:
+            return b->number > a->number ? -1 : a->number > b->number;
+        default:
             return 0;
+    }
+}
+
+/* json_compare helper */
+static int compare_children(const json_t *pa, const json_t *pb)
+{
+    for (unsigned i = 0; i < pa->size; i++)
+    {
+        const json_t *a = &pa->child[i];
+        const json_t *b = &pb->child[i];
+        int cmp;
+
+        if ((a->key != NULL) && (cmp = strcmp(a->key, b->key)))
+        {
+            return cmp;
         }
-        return equal_children(a, b);
+        if ((cmp = compare(a, b)))
+        {
+            return cmp;
+        }
+        if ((cmp = compare_children(a, b)))
+        {
+            return cmp;
+        }
     }
     return 0;
 }
+
+/**
+ * Compares two nodes
+ * Returns
+ * > 0 if a > b
+ * < 0 if a < b
+ * 0 otherwise
+ */
+int json_compare(const json_t *a, const json_t *b)
+{
+    if ((a == NULL) || (b == NULL))
+    {
+        return a == b ? 0 : a == NULL ? -1 : 1;
+    }
+
+    int cmp;
+
+    if ((cmp = compare(a, b)))
+    {
+        return cmp;
+    }
+    return compare_children(a, b);
+}
+
 
 /* json_walk recursive helper sending 'node' along with 'depth' and 'data' */
 static int walk(const json_t *node, unsigned short depth, json_walk_callback callback, void *data)

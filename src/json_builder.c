@@ -92,9 +92,9 @@ static int build(const json_event_t *event)
  *
  * The BFS buffer doubles as an implicit BFS queue: reader dequeues,
  * writer enqueues.  When a container is dequeued, its children are
- * located in the DFS array using the DFS index stored in base.child,
+ * located in the DFS array using the DFS index stored in base.index,
  * then appended to the BFS buffer with their real positions resolved.
- * base.magic holds the precomputed subtree size of each container,
+ * base.span holds the precomputed subtree size of each container,
  * set during build() at the END event — this replaces the recursive
  * population() traversal with an O(1) lookup per child.
  *
@@ -131,11 +131,10 @@ static json_t *fixup(const json_t *source, unsigned size)
 
         unsigned cursor = node->base.index + 1;
 
-        node->child = &target[writer]; // Real pointer to first child
+        node->child = &target[writer];
         for (unsigned i = 0; i < node->size; i++)
         {
             target[writer] = source[cursor];
-            // Containers carry their source index for their own expansion
             if (source[cursor].type & JSON_ITERABLE)
             {
                 target[writer].base.index = cursor;
