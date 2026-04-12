@@ -14,9 +14,15 @@ static int decode(char *text)
         perror("json_decode");
         return 0;
     }
-    json_print(node);
+
+    int rc = json_print(node);
+
+    if (rc == 0)
+    {
+        perror("json_print");
+    }
     free(node);
-    return 1;
+    return rc;
 }
 
 int main(int argc, char *argv[])
