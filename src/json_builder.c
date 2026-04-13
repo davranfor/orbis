@@ -13,7 +13,7 @@
 typedef struct
 {
     json_t *node;
-    unsigned size, height;
+    unsigned size;
     unsigned depth[JSON_MAX_DEPTH];
 } json_builder_t;
 
@@ -21,8 +21,6 @@ typedef struct
  * Callback for json_parse.
  * Appends each node in DFS pre-order; containers track their index in
  * builder->depth[] so children can increment the parent's size.
- * height records the deepest event->depth seen — used later to decide
- * whether the fast path applies.
  * node->child is initialised to NULL for containers: the fast path relies
  * on this for empty nested containers (size == 0, child must be NULL).
  */
@@ -39,10 +37,6 @@ static int build(const json_event_t *event)
             builder->node[index].span = builder->size - index;
         }
         return 1;
-    }
-    if (event->depth > builder->height)
-    {
-        builder->height = event->depth;
     }
 
     unsigned index = builder->size;
@@ -119,25 +113,27 @@ static json_t *fixup(const json_t *source, unsigned size)
     {
         json_t *node = &target[reader++];
 
-        if (node->size > 0)
+        if (node->size == 0)
         {
-            unsigned cursor = node->index + 1;
+            continue;
+        }
 
-            node->child = &target[writer];
-            for (unsigned i = 0; i < node->size; i++)
+        unsigned cursor = node->index + 1;
+
+        node->child = &target[writer];
+        for (unsigned i = 0; i < node->size; i++)
+        {
+            target[writer] = source[cursor];
+            if (target[writer].size > 0)
             {
-                target[writer] = source[cursor];
-                if (target[writer].size > 0)
-                {
-                    target[writer].index = cursor;
-                    cursor += target[writer].span;
-                }
-                else
-                {
-                    cursor += 1;
-                }
-                writer++;
+                target[writer].index = cursor;
+                cursor += target[writer].span;
             }
+            else
+            {
+                cursor += 1;
+            }
+            writer++;
         }
     }
     return target;
@@ -167,17 +163,18 @@ json_t *json_decode(char *str)
      * of root are leaves they occupy positions 1..offset-1, so position offset
      * is the last direct child. The condition verifies that nothing follows
      * that child's own leaf children: offset + node[offset].size + 1 == total.
-     * When true, only one or two child pointers need to be wired.
+     * When true, at most two child pointers need to be wired: root's and,
+     * if node[offset] is a non-empty container, its own.
      */
     unsigned offset = builder.node->size;
 
     if (builder.node[offset].size + offset + 1 == builder.size)
     {
-        if (builder.height > 0)
+        if (builder.node->size > 0)
         {
             builder.node->child = &builder.node[1];
         }
-        if (builder.height > 1)
+        if (builder.node[offset].size > 0)
         {
             builder.node[offset].child = &builder.node[offset + 1];
         }
