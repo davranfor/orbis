@@ -92,9 +92,9 @@ static int build(const json_event_t *event)
  *
  * The BFS buffer doubles as an implicit BFS queue: reader dequeues,
  * writer enqueues.  When a container is dequeued, its children are
- * located in the DFS array using the DFS index stored in base.index,
+ * located in the DFS array using the DFS index stored in node->index,
  * then appended to the BFS buffer with their real positions resolved.
- * base.span holds the precomputed subtree size of each container,
+ * node->span holds the precomputed subtree size of each container,
  * set during build() at the END event — this replaces the recursive
  * population() traversal with an O(1) lookup per child.
  *
@@ -119,28 +119,25 @@ static json_t *fixup(const json_t *source, unsigned size)
     {
         json_t *node = &target[reader++];
 
-        if (!(node->type & JSON_ITERABLE))
+        if (node->size > 0)
         {
-            continue;
-        }
-        if (node->size == 0)
-        {
-            node->child = NULL;
-            continue;
-        }
+            unsigned cursor = node->index + 1;
 
-        unsigned cursor = node->index + 1;
-
-        node->child = &target[writer];
-        for (unsigned i = 0; i < node->size; i++)
-        {
-            target[writer] = source[cursor];
-            if (source[cursor].type & JSON_ITERABLE)
+            node->child = &target[writer];
+            for (unsigned i = 0; i < node->size; i++)
             {
-                target[writer].index = cursor;
+                target[writer] = source[cursor];
+                if (target[writer].size > 0)
+                {
+                    target[writer].index = cursor;
+                    cursor += target[writer].span;
+                }
+                else
+                {
+                    cursor += 1;
+                }
+                writer++;
             }
-            cursor += source[cursor].size > 0 ? source[cursor].span : 1;
-            writer++;
         }
     }
     return target;
@@ -160,31 +157,37 @@ json_t *json_decode(char *str)
         free(builder.node);
         return NULL;
     }
-    if (builder.node == NULL)
-    {
-        return NULL;
-    }
 
     /**
-     * Fast path — flat JSON (height <= 1).
-     * When height <= 1, the root is the only container that can have
-     * children: any depth-1 container must have size == 0 (otherwise its
-     * own children would push height to 2). DFS pre-order is therefore
-     * identical to BFS.
+     * Fast path — DFS and BFS layouts are identical when:
+     * - all of root's children except possibly the last are leaves, AND
+     * - the last child (if a container) has only leaf children.
+     *
+     * offset = root->size. In DFS pre-order, if the first offset-1 children
+     * of root are leaves they occupy positions 1..offset-1, so position offset
+     * is the last direct child. The condition verifies that nothing follows
+     * that child's own leaf children: offset + node[offset].size + 1 == total.
+     * When true, only one or two child pointers need to be wired.
      */
-    if (builder.height <= 1)
+    unsigned offset = builder.node->size;
+
+    if (builder.node[offset].size + offset + 1 == builder.size)
     {
-        // Only the first child pointer need to be wired
-        if (builder.node->size > 0)
+        if (builder.height > 0)
         {
             builder.node->child = &builder.node[1];
+        }
+        if (builder.height > 1)
+        {
+            builder.node[offset].child = &builder.node[offset + 1];
         }
         return builder.node;
     }
 
     /**
-     * General path — nested JSON.
-     * Reorder to BFS using a temporary buffer, then free the DFS buffer.
+     * General path — nested JSON that requires a true BFS reorder.
+     *
+     * fixup() allocates a new buffer and rewrites child pointers.
      */
     json_t *node = fixup(builder.node, builder.size);
 

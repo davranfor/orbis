@@ -266,7 +266,12 @@ int json_parse(char *iter, json_event_callback callback, void *cookie)
         return 0;
     }
 
-    json_event_t event = { .iter = iter, .callback = callback, .cookie = cookie };
+    json_event_t event =
+    {
+        .iter = skip_spaces(iter),
+        .callback = callback,
+        .cookie = cookie
+    };
 
     return parse(&event) && (*event.iter == '\0');
 }
