@@ -5,9 +5,10 @@ SRCDIR  = ../src
 
 COMMON  = $(SRCDIR)/clib_math.c $(SRCDIR)/clib_unicode.c $(SRCDIR)/json_parser.c
 BUILDER = $(COMMON) $(SRCDIR)/json_builder.c
-FULL    = $(BUILDER) $(SRCDIR)/json_pointer.c
+READER  = $(BUILDER) $(SRCDIR)/json_reader.c $(SRCDIR)/clib_match.c $(SRCDIR)/clib_regex.c $(SRCDIR)/clib_date.c
+FULL    = $(READER) $(SRCDIR)/json_pointer.c
 
-TESTS = test_builder test_parser test_pointer
+TESTS = test_builder test_parser test_reader test_pointer
 
 .PHONY: all run clean
 
@@ -17,6 +18,9 @@ test_builder: test_builder.c $(BUILDER)
 	$(CC) $(CFLAGS) $^ $(LDLIBS) -o $@
 
 test_parser: test_parser.c $(COMMON)
+	$(CC) $(CFLAGS) $^ $(LDLIBS) -o $@
+
+test_reader: test_reader.c $(READER)
 	$(CC) $(CFLAGS) $^ $(LDLIBS) -o $@
 
 test_pointer: test_pointer.c $(FULL)
