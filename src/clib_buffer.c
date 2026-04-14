@@ -40,11 +40,11 @@ char *buffer_resize(buffer_t *buffer, size_t length)
 {
     size_t size = buffer->length + length + 1;
 
-    if ((size > buffer->size) || (buffer->size == 0))
+    if (size <= buffer->size)
     {
-        return resize(buffer, next_pow2(size));
+        return buffer->text;
     }
-    return buffer->text;
+    return resize(buffer, next_pow2(size));
 }
 
 char *buffer_repeat(buffer_t *buffer, char chr, size_t count)

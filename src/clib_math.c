@@ -87,13 +87,3 @@ size_t next_pow2(size_t number)
     return number;
 }
 
-/* Returns the next power of 2 if 'size' is a power of 2, 'size' otherwise */
-unsigned next_uint(unsigned size)
-{
-    return size == 0 ? 1 : (size & (size - 1)) ? size : size << 1;
-}
-size_t next_ulong(size_t size)
-{
-    return size == 0 ? 1 : (size & (size - 1)) ? size : size << 1;
-}
-

@@ -5,7 +5,6 @@
  */
 
 #include <stdlib.h>
-#include "clib_math.h"
 #include "json_private.h"
 #include "json_parser.h"
 #include "json_builder.h"
@@ -13,7 +12,7 @@
 typedef struct
 {
     json_t *node;
-    unsigned size;
+    unsigned size, room;
     unsigned depth[JSON_MAX_DEPTH];
 } json_builder_t;
 
@@ -39,26 +38,27 @@ static int build(const json_event_t *event)
         return 1;
     }
 
-    unsigned index = builder->size;
-    unsigned size = next_size(index);
     json_t *node;
 
-    if (size > builder->size)
+    if (builder->size == builder->room)
     {
-        node = realloc(builder->node, sizeof(*node) * size);
+        unsigned room = builder->room == 0 ? 1 : builder->room * 2;
+
+        node = realloc(builder->node, sizeof(*node) * room);
         if (node == NULL)
         {
             return 0;
         }
         builder->node = node;
+        builder->room = room;
     }
-    node = &builder->node[index];
+    node = &builder->node[builder->size];
     node->key = event->key;
     switch (event->type)
     {
         case JSON_OBJECT:
         case JSON_ARRAY:
-            builder->depth[event->depth] = index;
+            builder->depth[event->depth] = builder->size;
             node->child = NULL;
             break;
         case JSON_STRING:
@@ -67,8 +67,6 @@ static int build(const json_event_t *event)
         case JSON_INTEGER:
         case JSON_REAL:
             node->number = event->number;
-            break;
-        default:
             break;
     }
     node->type = event->type;
@@ -98,7 +96,7 @@ static int build(const json_event_t *event)
  */
 static json_t *fixup(const json_t *source, unsigned size)
 {
-    json_t *target = malloc(size * sizeof(*target));
+    json_t *target = malloc(sizeof(*target) * size);
 
     if (target == NULL)
     {
