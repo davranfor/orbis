@@ -5,7 +5,7 @@
 #include <orbis/json_reader.h>
 #include <orbis/json_utils.h>
 
-static int compare(const void *pa, const void *pb)
+static int sort(const void *pa, const void *pb)
 {
     int a = json_int((const json_t *)pa);
     int b = json_int((const json_t *)pb);
@@ -34,7 +34,7 @@ int main(void)
     puts("Unordered");
     json_print(array);
     puts("Ordered");
-    json_sort(array, compare);
+    json_sort(array, sort);
     json_print(array);
     puts("Search number 5 in array");
     json_print(json_search(array, &(int []){5}, search));
