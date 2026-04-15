@@ -14,51 +14,51 @@ typedef struct
     json_t *node;
     unsigned size, room;
     unsigned depth[JSON_MAX_DEPTH];
-} json_builder_t;
+} pool_t;
 
 /**
  * Callback for json_parse.
  * Appends each node in DFS pre-order; containers track their index in
- * builder->depth[] so children can increment the parent's size.
+ * pool->depth[] so children can increment the parent's size.
  * node->child is initialised to NULL for containers: the fast path relies
  * on this for empty nested containers (size == 0, child must be NULL).
  */
 static int build(const json_event_t *event)
 {
-    json_builder_t *builder = event->cookie;
+    pool_t *pool = event->data;
 
     if (event->type & JSON_ITERABLE_END)
     {
-        unsigned index = builder->depth[event->depth];
+        unsigned index = pool->depth[event->depth];
 
-        if (builder->node[index].size > 0)
+        if (pool->node[index].size > 0)
         {
-            builder->node[index].span = builder->size - index;
+            pool->node[index].span = pool->size - index;
         }
         return 1;
     }
 
     json_t *node;
 
-    if (builder->size == builder->room)
+    if (pool->size == pool->room)
     {
-        unsigned room = builder->room == 0 ? 1 : builder->room * 2;
+        unsigned room = pool->room == 0 ? 1 : pool->room * 2;
 
-        node = realloc(builder->node, sizeof(*node) * room);
+        node = realloc(pool->node, sizeof(*node) * room);
         if (node == NULL)
         {
             return 0;
         }
-        builder->node = node;
-        builder->room = room;
+        pool->node = node;
+        pool->room = room;
     }
-    node = &builder->node[builder->size];
+    node = &pool->node[pool->size];
     node->key = event->key;
     switch (event->type)
     {
         case JSON_OBJECT:
         case JSON_ARRAY:
-            builder->depth[event->depth] = builder->size;
+            pool->depth[event->depth] = pool->size;
             node->child = NULL;
             break;
         case JSON_STRING:
@@ -71,10 +71,10 @@ static int build(const json_event_t *event)
     }
     node->type = event->type;
     node->size = 0;
-    builder->size++;
+    pool->size++;
     if (event->depth > 0)
     {
-        builder->node[builder->depth[event->depth - 1]].size++;
+        pool->node[pool->depth[event->depth - 1]].size++;
     }
     return 1;
 }
@@ -144,11 +144,11 @@ json_t *json_decode(char *str)
         return NULL;
     }
 
-    json_builder_t builder = { 0 };
+    pool_t pool = { 0 };
 
-    if (!json_parse(str, build, &builder))
+    if (!json_parse(str, build, &pool))
     {
-        free(builder.node);
+        free(pool.node);
         return NULL;
     }
 
@@ -164,19 +164,19 @@ json_t *json_decode(char *str)
      * When true, at most two child pointers need to be wired: root's and,
      * if node[offset] is a non-empty container, its own.
      */
-    unsigned offset = builder.node->size;
+    unsigned offset = pool.node->size;
 
-    if (builder.node[offset].size + offset + 1 == builder.size)
+    if (pool.node[offset].size + offset + 1 == pool.size)
     {
-        if (builder.node->size > 0)
+        if (pool.node->size > 0)
         {
-            builder.node->child = &builder.node[1];
+            pool.node->child = &pool.node[1];
         }
-        if (builder.node[offset].size > 0)
+        if (pool.node[offset].size > 0)
         {
-            builder.node[offset].child = &builder.node[offset + 1];
+            pool.node[offset].child = &pool.node[offset + 1];
         }
-        return builder.node;
+        return pool.node;
     }
 
     /**
@@ -184,9 +184,9 @@ json_t *json_decode(char *str)
      *
      * fixup() allocates a new buffer and rewrites child pointers.
      */
-    json_t *node = fixup(builder.node, builder.size);
+    json_t *node = fixup(pool.node, pool.size);
 
-    free(builder.node);
+    free(pool.node);
     return node;
 }
 

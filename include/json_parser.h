@@ -15,7 +15,7 @@ typedef struct json_event
     union { char *string; double number; };
     unsigned type, depth;
     int (*callback)(const struct json_event *);
-    void *cookie;
+    void *data;
 } json_event_t;
 
 typedef int (*json_event_callback)(const json_event_t *);

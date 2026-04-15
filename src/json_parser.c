@@ -259,7 +259,7 @@ static int parse(json_event_t *event)
  * 'iter' must be writable (not a string literal).
  * The function modifies it in-place during parsing.
  */
-int json_parse(char *iter, json_event_callback callback, void *cookie)
+int json_parse(char *iter, json_event_callback callback, void *data)
 {
     if (iter == NULL)
     {
@@ -270,7 +270,7 @@ int json_parse(char *iter, json_event_callback callback, void *cookie)
     {
         .iter = skip_spaces(iter),
         .callback = callback,
-        .cookie = cookie
+        .data = data
     };
 
     return parse(&event) && (*event.iter == '\0');

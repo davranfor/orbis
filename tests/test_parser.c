@@ -21,7 +21,7 @@ typedef struct
 
 static int collect(const json_event_t *event)
 {
-    events_t *ev = event->cookie;
+    events_t *ev = event->data;
 
     if (ev->count < 64)
     {
