@@ -185,6 +185,16 @@ unsigned json_index(const json_t *node, const char *key)
     return JSON_NOT_FOUND;
 }
 
+/* Position in a parent given a child or -1u if NULL is passed */
+unsigned json_offset(const json_t *parent, const json_t *child)
+{
+    if ((parent != NULL) && (child != NULL))
+    {
+        return (unsigned)(child - parent->child);
+    }
+    return JSON_NOT_FOUND;
+}
+
 /* First node of an iterable */
 json_t *json_child(const json_t *node)
 {
