@@ -11,9 +11,9 @@
 #include <math.h>
 #include "clib_math.h"
 #include "clib_unicode.h"
-#include "json_parser.h"
+#include "sexp_parser.h"
 
-static int parse(json_event_t *);
+static int parse(sexp_event_t *);
 
 static char *skip_spaces(char *str)
 {
@@ -24,7 +24,7 @@ static char *skip_spaces(char *str)
     return str;
 }
 
-static char *decode_string(json_event_t *event)
+static char *decode_string(sexp_event_t *event)
 {
     char *str = ++event->iter, *ptr = str;
 
@@ -62,84 +62,53 @@ static char *decode_string(json_event_t *event)
     return result;
 }
 
-static int parse_key(json_event_t *event)
+static int parse_keyword(sexp_event_t *event)
 {
-    if (*event->iter != '\"')
+    if (!is_alpha(*event->iter))
     {
         return 0;
     }
-    if ((event->key = decode_string(event)) == NULL)
+
+    char *str = event->iter;
+    char *ptr = event->string = str - 1;
+
+    while (is_alnum(*str))
     {
-        return 0;
+        *ptr++ = *str++;
     }
-    if (*event->iter != ':')
-    {
-        return 0;
-    }
-    event->iter = skip_spaces(event->iter + 1);
+    *ptr = '\0';
+    event->iter = skip_spaces(str);
     return 1;
 }
 
-static int parse_object(json_event_t *event)
+static int parse_symbol(sexp_event_t *event)
 {
-    event->type = JSON_OBJECT;
+    event->type = SEXP_SYMBOL;
     event->iter = skip_spaces(event->iter + 1);
+    if (!parse_keyword(event))
+    {
+        return 0;
+    }
     if (!event->callback(event))
     {
         return 0;
     }
-    if (*event->iter != '}')
+    if (*event->iter != ')')
     {
-        if (event->depth++ >= JSON_MAX_DEPTH)
+        if (event->depth++ >= SEXP_MAX_DEPTH)
         {
             return 0;
         }
-        if (!parse_key(event) || !parse(event))
-        {
-            return 0;
-        }
-        while (*event->iter == ',')
-        {
-            event->iter = skip_spaces(event->iter + 1);
-            if (!parse_key(event) || !parse(event))
-            {
-                return 0;
-            }
-        }
-        event->depth--;
-    }
-    if (*event->iter != '}')
-    {
-        return 0;
-    }
-    event->key = NULL;
-    event->type = JSON_OBJECT_END;
-    event->iter = skip_spaces(event->iter + 1);
-    return event->callback(event);
-}
-
-static int parse_array(json_event_t *event)
-{
-    event->type = JSON_ARRAY;
-    event->iter = skip_spaces(event->iter + 1);
-    if (!event->callback(event))
-    {
-        return 0;
-    }
-    if (*event->iter != ']')
-    {
-        if (event->depth++ >= JSON_MAX_DEPTH)
-        {
-            return 0;
-        }
-        event->key = NULL;
         if (!parse(event))
         {
             return 0;
         }
-        while (*event->iter == ',')
+        while (*event->iter != ')')
         {
-            event->iter = skip_spaces(event->iter + 1);
+            if (is_alnum(event->iter[-1]))
+            {
+                return 0;
+            }
             if (!parse(event))
             {
                 return 0;
@@ -147,28 +116,27 @@ static int parse_array(json_event_t *event)
         }
         event->depth--;
     }
-    if (*event->iter != ']')
+    if (*event->iter != ')')
     {
         return 0;
     }
-    event->key = NULL;
-    event->type = JSON_ARRAY_END;
+    event->type = SEXP_SYMBOL_END;
     event->iter = skip_spaces(event->iter + 1);
     return event->callback(event);
 }
 
-static int parse_string(json_event_t *event)
+static int parse_string(sexp_event_t *event)
 {
     event->string = decode_string(event);
     if (event->string == NULL)
     {
         return 0;
     }
-    event->type = JSON_STRING;
+    event->type = SEXP_STRING;
     return event->callback(event);
 }
 
-static int parse_number(json_event_t *event)
+static int parse_number(sexp_event_t *event)
 {
     char *end;
 
@@ -186,57 +154,55 @@ static int parse_number(json_event_t *event)
     // Safe integers are numbers within the range of -2^52 to +2^52 (inclusive)
     if ((event->iter + strspn(event->iter, "-0123456789") >= end) && IS_SAFE_INTEGER(number))
     {
-        event->type = JSON_INTEGER;
+        event->type = SEXP_INTEGER;
     }
     else
     {
-        event->type = JSON_REAL;
+        event->type = SEXP_REAL;
     }
     event->iter = skip_spaces(end);
     return event->callback(event);
 }
 
-static int parse_true(json_event_t *event)
+static int parse_true(sexp_event_t *event)
 {
     if (strncmp(event->iter, "true", 4))
     {
         return 0;
     }
-    event->type = JSON_TRUE;
+    event->type = SEXP_TRUE;
     event->iter = skip_spaces(event->iter + 4);
     return event->callback(event);
 }
 
-static int parse_false(json_event_t *event)
+static int parse_false(sexp_event_t *event)
 {
     if (strncmp(event->iter, "false", 5))
     {
         return 0;
     }
-    event->type = JSON_FALSE;
+    event->type = SEXP_FALSE;
     event->iter = skip_spaces(event->iter + 5);
     return event->callback(event);
 }
 
-static int parse_null(json_event_t *event)
+static int parse_null(sexp_event_t *event)
 {
     if (strncmp(event->iter, "null", 4))
     {
         return 0;
     }
-    event->type = JSON_NULL;
+    event->type = SEXP_NULL;
     event->iter = skip_spaces(event->iter + 4);
     return event->callback(event);
 }
 
-static int parse(json_event_t *event)
+static int parse(sexp_event_t *event)
 {
     switch (*event->iter)
     {
-        case '{':
-            return parse_object(event);
-        case '[':
-            return parse_array(event);
+        case '(':
+            return parse_symbol(event);
         case '"':
             return parse_string(event);
         case '-':
@@ -258,20 +224,20 @@ static int parse(json_event_t *event)
  * 'iter' must be writable (not a string literal).
  * The function modifies it in-place during parsing.
  */
-int json_parse(char *iter, json_event_callback callback, void *data)
+int sexp_parse(char *iter, sexp_event_callback callback, void *data)
 {
     if (iter == NULL)
     {
         return 0;
     }
 
-    json_event_t event =
+    sexp_event_t event =
     {
         .iter = skip_spaces(iter),
         .callback = callback,
         .data = data
     };
 
-    return parse(&event) && (*event.iter == '\0');
+    return (*event.iter == '(') && parse(&event) && (*event.iter == '\0');
 }
 
