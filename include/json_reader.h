@@ -58,7 +58,6 @@ unsigned json_height(const json_t *);
 unsigned json_properties(const json_t *);
 unsigned json_items(const json_t *);
 unsigned json_index(const json_t *, const char *);
-unsigned json_offset(const json_t *, const json_t *);
 json_t *json_child(const json_t *);
 json_t *json_head(const json_t *);
 json_t *json_tail(const json_t *);
