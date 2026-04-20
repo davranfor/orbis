@@ -72,7 +72,7 @@ static int parse_keyword(sexp_event_t *event)
     char *str = event->iter;
     char *ptr = event->string = str - 1;
 
-    while (is_alnum(*str))
+    while (is_alpha(*str))
     {
         *ptr++ = *str++;
     }
