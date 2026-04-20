@@ -105,10 +105,6 @@ static int parse_symbol(sexp_event_t *event)
         }
         while (*event->iter != ')')
         {
-            if (is_alnum(event->iter[-1]))
-            {
-                return 0;
-            }
             if (!parse(event))
             {
                 return 0;

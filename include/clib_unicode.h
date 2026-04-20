@@ -35,15 +35,15 @@ static inline int is_xdigit(int c)
 
 static inline int is_alpha(int c)
 {
-    return ((c >= 'A') && (c <= 'Z'))
-        || ((c >= 'a') && (c <= 'z'));
+    return ((c >= 'a') && (c <= 'z'))
+        || ((c >= 'A') && (c <= 'Z'));
 }
 
 static inline int is_alnum(int c)
 {
-    return ((c >= '0') && (c <= '9'))
+    return ((c >= 'a') && (c <= 'z'))
         || ((c >= 'A') && (c <= 'Z'))
-        || ((c >= 'a') && (c <= 'z'));
+        || ((c >= '0') && (c <= '9'));
 }
 
 static inline int is_print(int c)
