@@ -32,8 +32,7 @@ static char *decode_string(sexp_event_t *event)
     {
         if (*str != '\\')
         {
-            *ptr++ = *str;
-            str += 1;
+            *ptr++ = *str++;
         }
         else if (is_esc(str + 1))
         {
