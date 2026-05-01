@@ -40,7 +40,6 @@ int print(const sexp_event_t *event)
     return 1;
 }
 
-
 int main(int argc, char *argv[])
 {
     setlocale(LC_NUMERIC, "C");
