@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <locale.h>
 #include <orbis/clib_stream.h>
-#include <orbis/json_builder.h>
+#include <orbis/json_writer.h>
 #include <orbis/json_buffer.h>
 
 static int decode(char *text)

@@ -50,5 +50,4 @@ uninstall:
 clean:
 	rm -rf $(OBJDIR)
 	rm -f $(TARGET)
-	find examples -type f -perm -111 -delete
 

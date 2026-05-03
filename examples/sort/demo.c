@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <orbis/json_builder.h>
-#include <orbis/json_buffer.h>
 #include <orbis/json_reader.h>
-#include <orbis/json_utils.h>
+#include <orbis/json_writer.h>
+#include <orbis/json_buffer.h>
+#include <orbis/json_sorter.h>
 
 static int sort(const void *pa, const void *pb)
 {

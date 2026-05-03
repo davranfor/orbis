@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include "json_private.h"
 #include "json_parser.h"
-#include "json_builder.h"
+#include "json_writer.h"
 
 typedef struct
 {
@@ -23,7 +23,7 @@ typedef struct
  * node->child is initialised to NULL for containers: the fast path relies
  * on this for empty nested containers (size == 0, child must be NULL).
  */
-static int build(const json_event_t *event)
+static int decode(const json_event_t *event)
 {
     pool_t *pool = event->data;
 
@@ -146,7 +146,7 @@ json_t *json_decode(char *str)
 
     pool_t pool = { 0 };
 
-    if (!json_parse(str, build, &pool))
+    if (!json_parse(str, decode, &pool))
     {
         free(pool.node);
         return NULL;

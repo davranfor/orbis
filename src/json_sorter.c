@@ -6,7 +6,7 @@
 
 #include <stdlib.h>
 #include "json_private.h"
-#include "json_utils.h"
+#include "json_sorter.h"
 
 /* Search a node into a json iterable (the iterable must be already sorted) */
 json_t *json_search(const json_t *node, const void *key,
