@@ -42,7 +42,7 @@ static int decode(const json_event_t *event)
 
     if (pool->size == pool->room)
     {
-        unsigned room = pool->room == 0 ? 1 : pool->room * 2;
+        unsigned room = pool->room ? pool->room * 2 : 1;
 
         node = realloc(pool->node, sizeof(*node) * room);
         if (node == NULL)

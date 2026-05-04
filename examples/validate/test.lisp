@@ -11,7 +11,7 @@
     )
     (property "hobbies"
         (array
-            (items (string))
+            (item (string))
         )
     )
 )
