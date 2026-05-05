@@ -11,6 +11,33 @@
 #include "json_private.h"
 #include "json_struct.h"
 
+#define KEYWORD(_)                          \
+    _(KEYWORD_OBJECT,       "object")       \
+    _(KEYWORD_ARRAY,        "array")        \
+    _(KEYWORD_STRING,       "string")       \
+    _(KEYWORD_INTEGER,      "integer")      \
+    _(KEYWORD_NUMBER,       "number")       \
+    _(KEYWORD_BOOLEAN,      "boolean")      \
+    _(KEYWORD_NULL,         "null")         \
+    _(KEYWORD_PROPERTY,     "property")     \
+    _(KEYWORD_ITEM,         "item")         \
+    _(KEYWORD_PATTERN,      "pattern")      \
+    _(KEYWORD_FORMAT,       "format")       \
+    _(KEYWORD_MASK,         "mask")         \
+    _(KEYWORD_MIN_LENGTH,   "minLength")    \
+    _(KEYWORD_MAX_LENGTH,   "maxLength")    \
+    _(KEYWORD_MIN,          "min")          \
+    _(KEYWORD_MAX,          "max")
+
+#define KEYWORD_ENUM(a, b) a,
+enum { KEYWORD(KEYWORD_ENUM) NKEYWORDS, INVALID_KEYWORD };
+#define KEYWORD_TEXT(a, b) b,
+static const char *keywords[] = { KEYWORD(KEYWORD_TEXT) };
+
+/******************************************************************************
+ EVAL CODE
+******************************************************************************/
+
 typedef struct code
 {
     int (*eval)(const struct code *, void *);
@@ -19,14 +46,87 @@ typedef struct code
 
 static int eval_code(const code_t *code, void *data)
 {
-    while (code->eval != NULL)
+    for (; code->eval != NULL; code++)
     {
         if (!code->eval(code, data))
         {
             return 0;
         }
-        code++;
     }
+    return 1;
+}
+
+static int eval_type(const code_t *code, void *data)
+{
+    (void)data;
+    printf("is_type: %u %s\n",
+        (unsigned)code->number,
+        keywords[(unsigned)code->number]
+    );
+    return 1;
+}
+
+static int eval_property(const code_t *code, void *data)
+{
+    (void)data;
+    printf("property: %s\n", code->string);
+    return 1;
+}
+
+static int eval_item(const code_t *code, void *data)
+{
+    (void)code;
+    (void)data;
+    printf("item\n");
+    return 1;
+}
+
+static int eval_pattern(const code_t *code, void *data)
+{
+    (void)data;
+    printf("pattern: %s\n", code->string);
+    return 1;
+}
+
+static int eval_format(const code_t *code, void *data)
+{
+    (void)data;
+    printf("format: %s\n", code->string);
+    return 1;
+}
+
+static int eval_mask(const code_t *code, void *data)
+{
+    (void)data;
+    printf("mask: %s\n", code->string);
+    return 1;
+}
+
+static int eval_min_length(const code_t *code, void *data)
+{
+    (void)data;
+    printf("minLength: %zu\n", (size_t)code->number);
+    return 1;
+}
+
+static int eval_max_length(const code_t *code, void *data)
+{
+    (void)data;
+    printf("maxLength: %zu\n", (size_t)code->number);
+    return 1;
+}
+
+static int eval_min(const code_t *code, void *data)
+{
+    (void)data;
+    printf("min: %f\n", code->number);
+    return 1;
+}
+
+static int eval_max(const code_t *code, void *data)
+{
+    (void)data;
+    printf("max: %f\n", code->number);
     return 1;
 }
 
@@ -37,6 +137,10 @@ static int eval_dummy(const code_t *code, void *data)
     printf("...\n");
     return 1;
 }
+
+/******************************************************************************
+ COMPILE CODE
+******************************************************************************/
 
 typedef struct { code_t *code; unsigned size, room; } pool_t;
 typedef struct { unsigned index, keyword, type, size; } path_t;
@@ -51,33 +155,14 @@ static code_t *pool_resize(pool_t *pool)
 
         if (code == NULL)
         {
-            return 0;
+            return NULL;
         }
         pool->code = code;
         pool->room = room;
     }
+    memset(&pool->code[pool->size], 0, sizeof(code_t));
     return &pool->code[pool->size++];
 }
-
-// X macro indexing enum and array of strings containing keywords
-#define KEYWORD(_)                  \
-    _(KEYWORD_OBJECT,   "object")   \
-    _(KEYWORD_ARRAY,    "array")    \
-    _(KEYWORD_STRING,   "string")   \
-    _(KEYWORD_INTEGER,  "integer")  \
-    _(KEYWORD_NUMBER,   "number")   \
-    _(KEYWORD_BOOLEAN,  "boolean")  \
-    _(KEYWORD_NULL,     "null")     \
-    _(KEYWORD_PROPERTY, "property") \
-    _(KEYWORD_ITEM,     "item")     \
-    _(KEYWORD_PATTERN,  "pattern")  \
-    _(KEYWORD_MIN,      "min")      \
-    _(KEYWORD_MAX,      "max")
-
-#define KEYWORD_ENUM(a, b) a,
-enum { KEYWORD(KEYWORD_ENUM) NKEYWORDS, INVALID_KEYWORD };
-#define KEYWORD_TEXT(a, b) b,
-static const char *keywords[] = { KEYWORD(KEYWORD_TEXT) };
 
 static unsigned keyword_id(const char *keyword)
 {
@@ -92,19 +177,11 @@ static unsigned keyword_id(const char *keyword)
     return INVALID_KEYWORD;
 }
 
-static int keyword_expected(const sexp_event_t *event, unsigned keyword)
+static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
 {
-    printf("keyword %s at depth %u\n", keywords[keyword], event->depth); 
     frame_t *frame = event->data;
     path_t *parent = event->depth ? &frame->path[event->depth - 1] : NULL;
 
-    if ((parent != NULL) && (parent->keyword == KEYWORD_PROPERTY))
-    {
-        if (parent->type == SEXP_UNDEFINED)
-        {
-            return 0;
-        }
-    }
     switch (keyword)
     {
         case KEYWORD_OBJECT:
@@ -115,8 +192,9 @@ static int keyword_expected(const sexp_event_t *event, unsigned keyword)
         case KEYWORD_BOOLEAN:
         case KEYWORD_NULL:
             return parent != NULL
-                ? (parent->keyword == KEYWORD_PROPERTY) ||
-                  (parent->keyword == KEYWORD_ITEM)
+                ? parent->keyword != KEYWORD_PROPERTY
+                    ? parent->keyword == KEYWORD_ITEM
+                    : parent->type == SEXP_STRING
                 : 1;
         case KEYWORD_PROPERTY:
             return (parent != NULL) &&
@@ -125,6 +203,10 @@ static int keyword_expected(const sexp_event_t *event, unsigned keyword)
             return (parent != NULL) &&
                    (parent->keyword == KEYWORD_ARRAY);
         case KEYWORD_PATTERN:
+        case KEYWORD_FORMAT:
+        case KEYWORD_MASK:
+        case KEYWORD_MIN_LENGTH:
+        case KEYWORD_MAX_LENGTH:
             return (parent != NULL) &&
                    (parent->keyword == KEYWORD_STRING);
         case KEYWORD_MIN:
@@ -138,6 +220,32 @@ static int keyword_expected(const sexp_event_t *event, unsigned keyword)
     }
 }
 
+static int keyword_is_valid(const sexp_event_t *event)
+{
+    frame_t *frame = event->data;
+    path_t *path = &frame->path[event->depth];
+    path_t *parent = event->depth ? &path[-1] : NULL;
+
+    switch (path->keyword)
+    {
+        case KEYWORD_PROPERTY:
+        case KEYWORD_PATTERN:
+        case KEYWORD_FORMAT:
+        case KEYWORD_MASK:
+            return path->type == SEXP_STRING;
+        case KEYWORD_MIN_LENGTH:
+        case KEYWORD_MAX_LENGTH:
+            return path->type == SEXP_INTEGER;
+        case KEYWORD_MIN:
+        case KEYWORD_MAX:
+            return parent->keyword == KEYWORD_INTEGER
+                ? path->type == SEXP_INTEGER
+                : (path->type & SEXP_NUMBER) != 0;
+        default:
+            return path->type == SEXP_UNDEFINED;
+    }
+}
+
 static int push_symbol(const sexp_event_t *event)
 {
     unsigned keyword = keyword_id(event->string);
@@ -146,7 +254,7 @@ static int push_symbol(const sexp_event_t *event)
     {
         return 0;
     }
-    if (!keyword_expected(event, keyword))
+    if (!keyword_is_expected(event, keyword))
     {
         printf("Unexpected keyword %s\n", keywords[keyword]); 
         return 0;
@@ -173,28 +281,61 @@ static int push_symbol(const sexp_event_t *event)
     switch (keyword)
     {
         case KEYWORD_OBJECT:
+        case KEYWORD_ARRAY:
+        case KEYWORD_STRING:
+        case KEYWORD_INTEGER:
+        case KEYWORD_NUMBER:
+        case KEYWORD_BOOLEAN:
+        case KEYWORD_NULL:
+            code->eval = eval_type;
+            code->number = keyword;
+            break;
+        case KEYWORD_PROPERTY:
+            code->eval = eval_property;
+            break;
+        case KEYWORD_ITEM:
+            code->eval = eval_item;
+            break;
+        case KEYWORD_PATTERN:
+            code->eval = eval_pattern;
+            break;
+        case KEYWORD_FORMAT:
+            code->eval = eval_format;
+            break;
+        case KEYWORD_MASK:
+            code->eval = eval_mask;
+            break;
+        case KEYWORD_MIN_LENGTH:
+            code->eval = eval_min_length;
+            break;
+        case KEYWORD_MAX_LENGTH:
+            code->eval = eval_max_length;
+            break;
+        case KEYWORD_MIN:
+            code->eval = eval_min;
+            break;
+        case KEYWORD_MAX:
+            code->eval = eval_max;
+            break;
         default:
             code->eval = eval_dummy;
             break;
     }
-    code->string = NULL;
     return 1;
 }
 
 static int push_symbol_end(const sexp_event_t *event)
 {
+    if (!keyword_is_valid(event))
+    {
+        return 0;
+    }
+
     frame_t *frame = event->data;
-    code_t *code;
 
     if (event->depth == 0)
     {
-        code = pool_resize(&frame->pool);
-        if (code == NULL)
-        {
-            return 0;
-        }
-        code->eval = NULL;
-        code->string = NULL;
+        return pool_resize(&frame->pool) != NULL;
     }
     return 1;
 }
@@ -243,22 +384,6 @@ static int push_real(const sexp_event_t *event)
     code->number = event->number;
     return 1;
 }
-
-/*
-static int compile_dummy(const sexp_event_t *event)
-{
-    pool_t *pool = event->data;
-    code_t *code = pool_resize(pool);
-
-    if (code != NULL)
-    {
-        code->eval = eval_dummy;
-        code->string = NULL;
-        return 1;
-    }
-    return 0;
-}
-*/
 
 static int compile(const sexp_event_t *event)
 {
