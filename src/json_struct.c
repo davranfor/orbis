@@ -48,7 +48,6 @@ typedef struct
 {
     const json_t *node;
     const json_t *path[JSON_MAX_DEPTH];
-    unsigned size[JSON_MAX_DEPTH];
     unsigned depth;
     json_validate_callback callback;
     void *data;
@@ -72,38 +71,50 @@ static int eval_code(const code_t *code, schema_t *schema)
     return 1;
 }
 
-static int eval_type(const code_t *code, schema_t *schema)
+static int eval_object(const code_t *code, schema_t *schema)
 {
-    printf("is_type: %u %s\n",
-        (unsigned)code->number,
-        keywords[(unsigned)code->number]
-    );
+    printf("object\n");
 
-    unsigned type = json_type(schema->node);
+    if (schema->node->type != JSON_OBJECT)
+    {
+        return 0;
+    }
+
+    printf("size: %u\n", (unsigned)code->number);
+
+    if (schema->node->size != (unsigned)code->number)
+    {
+        return 0;
+    }
+    schema->path[schema->depth++] = schema->node;
+    return 1;
+}
+
+static int eval_object_end(const code_t *code, schema_t *schema)
+{
+    (void)code;
+    schema->node = schema->path[--schema->depth];
+    return 1;
+}
+
+static int eval_scalar(const code_t *code, schema_t *schema)
+{
+    printf("scalar: %s\n", keywords[(unsigned)code->number]);
 
     switch ((unsigned)code->number)
     {
-        case KEYWORD_OBJECT:
-            if (type == JSON_OBJECT)
-            {
-                schema->path[schema->depth] = schema->node;
-                schema->size[schema->depth] = 0;
-                schema->depth++;
-                return 1;
-            }
-            return 0;
         case KEYWORD_ARRAY:
-            return type == JSON_ARRAY;
+            return schema->node->type == JSON_ARRAY;
         case KEYWORD_STRING:
-            return type == JSON_STRING;
+            return schema->node->type == JSON_STRING;
         case KEYWORD_INTEGER:
-            return type == JSON_INTEGER;
+            return schema->node->type == JSON_INTEGER;
         case KEYWORD_NUMBER:
-            return (type & JSON_NUMBER) != 0;
+            return (schema->node->type & JSON_NUMBER) != 0;
         case KEYWORD_BOOLEAN:
-            return (type & JSON_BOOLEAN) != 0;
+            return (schema->node->type & JSON_BOOLEAN) != 0;
         case KEYWORD_NULL:
-            return type == JSON_NULL;
+            return schema->node->type == JSON_NULL;
         default:
             return 0;
     }
@@ -121,7 +132,6 @@ static int eval_property(const code_t *code, schema_t *schema)
     {
         return 0;
     }
-    schema->size[schema->depth - 1]++; 
     schema->node = node;
     return 1;
 }
@@ -180,20 +190,6 @@ static int eval_multiple_of(const code_t *code, schema_t *schema)
 {
     printf("multipleOf: %f\n", code->number);
     return fmod(schema->node->number, code->number) == 0.0;
-}
-
-static int eval_iterable_end(const code_t *code, schema_t *schema)
-{
-    (void)code;
-    const json_t *node = schema->path[--schema->depth];
-
-    printf("size: %u\n", schema->size[schema->depth]);
-    if (node->size == schema->size[schema->depth])
-    {
-        schema->node = node;
-        return 1;
-    }
-    return 0;
 }
 
 static int eval_dummy(const code_t *code, schema_t *schema)
@@ -306,7 +302,8 @@ static int keyword_is_valid(const sexp_event_t *event)
             return path->type == SEXP_STRING;
         case KEYWORD_MIN_LENGTH:
         case KEYWORD_MAX_LENGTH:
-            return path->type == SEXP_INTEGER;
+            return (path->type == SEXP_INTEGER) &&
+                   (frame->code[path->index].number >= 0);
         case KEYWORD_MIN:
         case KEYWORD_MAX:
         case KEYWORD_MULTIPLE_OF:
@@ -353,13 +350,15 @@ static int push_symbol(const sexp_event_t *event)
     switch (keyword)
     {
         case KEYWORD_OBJECT:
+            code->eval = eval_object;
+            break;
         case KEYWORD_ARRAY:
         case KEYWORD_STRING:
         case KEYWORD_INTEGER:
         case KEYWORD_NUMBER:
         case KEYWORD_BOOLEAN:
         case KEYWORD_NULL:
-            code->eval = eval_type;
+            code->eval = eval_scalar;
             code->number = keyword;
             break;
         case KEYWORD_PROPERTY:
@@ -408,17 +407,17 @@ static int push_symbol_end(const sexp_event_t *event)
 
     frame_t *frame = event->data;
     path_t *path = &frame->path[event->depth];
+    code_t *code = &frame->code[path->index];
 
-    if ((path->keyword == KEYWORD_OBJECT) ||
-        (path->keyword == KEYWORD_ARRAY))
+    if (path->keyword == KEYWORD_OBJECT)
     {
-        code_t *code = frame_resize(frame);
-
+        code->number = path->size;
+        code = frame_resize(frame);
         if (code == NULL)
         {
             return 0;
         }
-        code->eval = eval_iterable_end;
+        code->eval = eval_object_end;
     }
     if (event->depth == 0)
     {
