@@ -7,8 +7,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
+#include "clib_string.h"
+#include "clib_regex.h"
+#include "clib_match.h"
 #include "sexp_parser.h"
 #include "json_private.h"
+#include "json_reader.h"
 #include "json_struct.h"
 
 #define KEYWORD(_)                          \
@@ -27,7 +32,8 @@
     _(KEYWORD_MIN_LENGTH,   "minLength")    \
     _(KEYWORD_MAX_LENGTH,   "maxLength")    \
     _(KEYWORD_MIN,          "min")          \
-    _(KEYWORD_MAX,          "max")
+    _(KEYWORD_MAX,          "max")          \
+    _(KEYWORD_MULTIPLE_OF,  "multipleOf")
 
 #define KEYWORD_ENUM(a, b) a,
 enum { KEYWORD(KEYWORD_ENUM) NKEYWORDS, INVALID_KEYWORD };
@@ -38,17 +44,27 @@ static const char *keywords[] = { KEYWORD(KEYWORD_TEXT) };
  EVAL CODE
 ******************************************************************************/
 
+typedef struct
+{
+    const json_t *node;
+    const json_t *path[JSON_MAX_DEPTH];
+    unsigned size[JSON_MAX_DEPTH];
+    unsigned depth;
+    json_validate_callback callback;
+    void *data;
+} schema_t;
+
 typedef struct code
 {
-    int (*eval)(const struct code *, void *);
+    int (*eval)(const struct code *, schema_t *schema);
     union { char *string; double number; };
 } code_t;
 
-static int eval_code(const code_t *code, void *data)
+static int eval_code(const code_t *code, schema_t *schema)
 {
     for (; code->eval != NULL; code++)
     {
-        if (!code->eval(code, data))
+        if (!code->eval(code, schema))
         {
             return 0;
         }
@@ -56,84 +72,134 @@ static int eval_code(const code_t *code, void *data)
     return 1;
 }
 
-static int eval_type(const code_t *code, void *data)
+static int eval_type(const code_t *code, schema_t *schema)
 {
-    (void)data;
     printf("is_type: %u %s\n",
         (unsigned)code->number,
         keywords[(unsigned)code->number]
     );
+
+    unsigned type = json_type(schema->node);
+
+    switch ((unsigned)code->number)
+    {
+        case KEYWORD_OBJECT:
+            if (type == JSON_OBJECT)
+            {
+                schema->path[schema->depth] = schema->node;
+                schema->size[schema->depth] = 0;
+                schema->depth++;
+                return 1;
+            }
+            return 0;
+        case KEYWORD_ARRAY:
+            return type == JSON_ARRAY;
+        case KEYWORD_STRING:
+            return type == JSON_STRING;
+        case KEYWORD_INTEGER:
+            return type == JSON_INTEGER;
+        case KEYWORD_NUMBER:
+            return (type & JSON_NUMBER) != 0;
+        case KEYWORD_BOOLEAN:
+            return (type & JSON_BOOLEAN) != 0;
+        case KEYWORD_NULL:
+            return type == JSON_NULL;
+        default:
+            return 0;
+    }
     return 1;
 }
 
-static int eval_property(const code_t *code, void *data)
+static int eval_property(const code_t *code, schema_t *schema)
 {
-    (void)data;
     printf("property: %s\n", code->string);
+
+    const json_t *object = schema->path[schema->depth - 1]; 
+    const json_t *node = json_find(object, code->string);
+
+    if (node == NULL)
+    {
+        return 0;
+    }
+    schema->size[schema->depth - 1]++; 
+    schema->node = node;
     return 1;
 }
 
-static int eval_item(const code_t *code, void *data)
+static int eval_item(const code_t *code, schema_t *schema)
 {
     (void)code;
-    (void)data;
+    (void)schema;
     printf("item\n");
     return 1;
 }
 
-static int eval_pattern(const code_t *code, void *data)
+static int eval_pattern(const code_t *code, schema_t *schema)
 {
-    (void)data;
     printf("pattern: %s\n", code->string);
-    return 1;
+    return test_regex(schema->node->string, code->string);
 }
 
-static int eval_format(const code_t *code, void *data)
+static int eval_format(const code_t *code, schema_t *schema)
 {
-    (void)data;
     printf("format: %s\n", code->string);
-    return 1;
+    return test_match(schema->node->string, code->string);
 }
 
-static int eval_mask(const code_t *code, void *data)
+static int eval_mask(const code_t *code, schema_t *schema)
 {
-    (void)data;
     printf("mask: %s\n", code->string);
-    return 1;
+    return test_mask(schema->node->string, code->string) != NULL;
 }
 
-static int eval_min_length(const code_t *code, void *data)
+static int eval_min_length(const code_t *code, schema_t *schema)
 {
-    (void)data;
     printf("minLength: %zu\n", (size_t)code->number);
-    return 1;
+    return string_length(schema->node->string) >= (size_t)code->number;
 }
 
-static int eval_max_length(const code_t *code, void *data)
+static int eval_max_length(const code_t *code, schema_t *schema)
 {
-    (void)data;
     printf("maxLength: %zu\n", (size_t)code->number);
-    return 1;
+    return string_length(schema->node->string) <= (size_t)code->number;
 }
 
-static int eval_min(const code_t *code, void *data)
+static int eval_min(const code_t *code, schema_t *schema)
 {
-    (void)data;
     printf("min: %f\n", code->number);
-    return 1;
+    return schema->node->number >= code->number;
 }
 
-static int eval_max(const code_t *code, void *data)
+static int eval_max(const code_t *code, schema_t *schema)
 {
-    (void)data;
     printf("max: %f\n", code->number);
-    return 1;
+    return schema->node->number <= code->number;
 }
 
-static int eval_dummy(const code_t *code, void *data)
+static int eval_multiple_of(const code_t *code, schema_t *schema)
+{
+    printf("multipleOf: %f\n", code->number);
+    return fmod(schema->node->number, code->number) == 0.0;
+}
+
+static int eval_iterable_end(const code_t *code, schema_t *schema)
 {
     (void)code;
-    (void)data;
+    const json_t *node = schema->path[--schema->depth];
+
+    printf("size: %u\n", schema->size[schema->depth]);
+    if (node->size == schema->size[schema->depth])
+    {
+        schema->node = node;
+        return 1;
+    }
+    return 0;
+}
+
+static int eval_dummy(const code_t *code, schema_t *schema)
+{
+    (void)code;
+    (void)schema;
     printf("...\n");
     return 1;
 }
@@ -142,26 +208,30 @@ static int eval_dummy(const code_t *code, void *data)
  COMPILE CODE
 ******************************************************************************/
 
-typedef struct { code_t *code; unsigned size, room; } pool_t;
-typedef struct { unsigned index, keyword, type, size; } path_t;
-typedef struct { pool_t pool; path_t path[SEXP_MAX_DEPTH]; } frame_t;
-
-static code_t *pool_resize(pool_t *pool)
+typedef struct { unsigned keyword, index, type, size; } path_t;
+typedef struct
 {
-    if (pool->size == pool->room)
+    code_t *code;
+    unsigned size, room;
+    path_t path[SEXP_MAX_DEPTH];
+} frame_t;
+
+static code_t *frame_resize(frame_t *frame)
+{
+    if (frame->size == frame->room)
     {
-        unsigned room = pool->room ? pool->room * 2 : 1;
-        code_t *code = realloc(pool->code, sizeof(*code) * room);
+        unsigned room = frame->room ? frame->room * 2 : 1;
+        code_t *code = realloc(frame->code, sizeof(*code) * room);
 
         if (code == NULL)
         {
             return NULL;
         }
-        pool->code = code;
-        pool->room = room;
+        frame->code = code;
+        frame->room = room;
     }
-    memset(&pool->code[pool->size], 0, sizeof(code_t));
-    return &pool->code[pool->size++];
+    memset(&frame->code[frame->size], 0, sizeof(code_t));
+    return &frame->code[frame->size++];
 }
 
 static unsigned keyword_id(const char *keyword)
@@ -211,6 +281,7 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
                    (parent->keyword == KEYWORD_STRING);
         case KEYWORD_MIN:
         case KEYWORD_MAX:
+        case KEYWORD_MULTIPLE_OF:
             return parent != NULL
                 ? (parent->keyword == KEYWORD_INTEGER) ||
                   (parent->keyword == KEYWORD_NUMBER)
@@ -238,6 +309,7 @@ static int keyword_is_valid(const sexp_event_t *event)
             return path->type == SEXP_INTEGER;
         case KEYWORD_MIN:
         case KEYWORD_MAX:
+        case KEYWORD_MULTIPLE_OF:
             return parent->keyword == KEYWORD_INTEGER
                 ? path->type == SEXP_INTEGER
                 : (path->type & SEXP_NUMBER) != 0;
@@ -263,12 +335,12 @@ static int push_symbol(const sexp_event_t *event)
     frame_t *frame = event->data;
     path_t *path = &frame->path[event->depth];
 
-    path->index = frame->pool.size;
     path->keyword = keyword;
+    path->index = frame->size;
     path->type = SEXP_UNDEFINED;
     path->size = 0;
 
-    code_t *code = pool_resize(&frame->pool);
+    code_t *code = frame_resize(frame);
 
     if (code == NULL)
     {
@@ -317,6 +389,9 @@ static int push_symbol(const sexp_event_t *event)
         case KEYWORD_MAX:
             code->eval = eval_max;
             break;
+        case KEYWORD_MULTIPLE_OF:
+            code->eval = eval_multiple_of;
+            break;
         default:
             code->eval = eval_dummy;
             break;
@@ -332,10 +407,22 @@ static int push_symbol_end(const sexp_event_t *event)
     }
 
     frame_t *frame = event->data;
+    path_t *path = &frame->path[event->depth];
 
+    if ((path->keyword == KEYWORD_OBJECT) ||
+        (path->keyword == KEYWORD_ARRAY))
+    {
+        code_t *code = frame_resize(frame);
+
+        if (code == NULL)
+        {
+            return 0;
+        }
+        code->eval = eval_iterable_end;
+    }
     if (event->depth == 0)
     {
-        return pool_resize(&frame->pool) != NULL;
+        return frame_resize(frame) != NULL;
     }
     return 1;
 }
@@ -343,14 +430,14 @@ static int push_symbol_end(const sexp_event_t *event)
 static int push_string(const sexp_event_t *event)
 {
     frame_t *frame = event->data;
-    path_t *path = &frame->path[event->depth - 1];
-    code_t *code = &frame->pool.code[path->index];
+    path_t *parent = &frame->path[event->depth - 1];
+    code_t *code = &frame->code[parent->index];
     
-    if (path->type != SEXP_UNDEFINED)
+    if (parent->type != SEXP_UNDEFINED)
     {
         return 0;
     }
-    path->type = SEXP_STRING;
+    parent->type = SEXP_STRING;
     code->string = event->string;
     return 1;
 }
@@ -358,14 +445,14 @@ static int push_string(const sexp_event_t *event)
 static int push_integer(const sexp_event_t *event)
 {
     frame_t *frame = event->data;
-    path_t *path = &frame->path[event->depth - 1];
-    code_t *code = &frame->pool.code[path->index];
+    path_t *parent = &frame->path[event->depth - 1];
+    code_t *code = &frame->code[parent->index];
     
-    if (path->type != SEXP_UNDEFINED)
+    if (parent->type != SEXP_UNDEFINED)
     {
         return 0;
     }
-    path->type = SEXP_INTEGER;
+    parent->type = SEXP_INTEGER;
     code->number = event->number;
     return 1;
 }
@@ -373,14 +460,14 @@ static int push_integer(const sexp_event_t *event)
 static int push_real(const sexp_event_t *event)
 {
     frame_t *frame = event->data;
-    path_t *path = &frame->path[event->depth - 1];
-    code_t *code = &frame->pool.code[path->index];
+    path_t *parent = &frame->path[event->depth - 1];
+    code_t *code = &frame->code[parent->index];
     
-    if (path->type != SEXP_UNDEFINED)
+    if (parent->type != SEXP_UNDEFINED)
     {
         return 0;
     }
-    path->type = SEXP_NUMBER;
+    parent->type = SEXP_NUMBER;
     code->number = event->number;
     return 1;
 }
@@ -415,15 +502,26 @@ void *json_compile(char *str)
 
     if (!sexp_parse(str, compile, &frame))
     {
-        free(frame.pool.code);
+        free(frame.code);
         return NULL;
     }
-    return frame.pool.code;
+    return frame.code;
 }
 
-int json_validate(const json_t *node, const void *code)
+int json_validate(const json_t *node, const void *code,
+    json_validate_callback callback, void *data)
 {
-    (void)node;
-    return eval_code(code, NULL);
+    schema_t schema =
+    {
+        .node = node,
+        .callback = callback,
+        .data = data
+    };
+
+    if ((node == NULL) || (code == NULL))
+    {
+        return 0;
+    }
+    return eval_code(code, &schema);
 }
 

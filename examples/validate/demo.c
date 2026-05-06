@@ -1,38 +1,63 @@
+/*!
+ *  \brief     C library for unixes
+ *  \author    David Ranieri <davranfor@gmail.com>
+ *  \copyright GNU Public License.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <locale.h>
 #include <orbis/clib_stream.h>
+#include <orbis/json_writer.h>
 #include <orbis/json_struct.h>
-
-static int compile(char *text)
-{
-    void *code = json_compile(text);
-
-    if (code == NULL)
-    {
-        perror("json_compile");
-        return 0;
-    }
-    json_validate(NULL, code);
-    free(code);
-    return 1;
-}
 
 int main(int argc, char *argv[])
 {
+    int rc = EXIT_FAILURE;
+
     setlocale(LC_NUMERIC, "C");
 
-    char *text = file_read(argc > 1 ? argv[1] : "test.lisp");
-
-    if (text == NULL)
+    const char *path[] =
     {
+        argc > 1 ? argv[1] : "test.json",
+        argc > 2 ? argv[2] : "test.lisp"
+    };
+
+    char *file[] = { NULL, NULL };
+    json_t *node = NULL;
+    void *code = NULL;
+
+    if (!(file[0] = file_read(path[0])))
+    {
+        fprintf(stderr, "%s\n", path[0]);
         perror("file_read");
-        exit(EXIT_FAILURE);
+        goto fail;
     }
-
-    int rc = compile(text) ? EXIT_SUCCESS : EXIT_FAILURE;
-
-    free(text);
+    if (!(file[1] = file_read(path[1])))
+    {
+        fprintf(stderr, "%s\n", path[1]);
+        perror("file_read");
+        goto fail;
+    }
+    if (!(node = json_decode(file[0])))
+    {
+        perror("json_decode");
+        goto fail;
+    }
+    if (!(code = json_compile(file[1])))
+    {
+        perror("json_compile");
+        goto fail;
+    }
+    if (!(rc = json_validate(node, code, NULL, NULL)))
+    {
+        fprintf(stderr, "'%s' doesn't validate against '%s'\n", path[0], path[1]);
+    }
+fail:
+    free(file[0]);
+    free(file[1]);
+    free(node);
+    free(code);
     return rc;
 }
 

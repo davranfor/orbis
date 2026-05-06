@@ -1,0 +1,11 @@
+{
+  "name": "John Smith",
+  "age": 42,
+  "address": {
+    "street": "Calle del socorro, 42",
+    "city": "Palma de Mallorca",
+    "state": "Baleares",
+    "postalCode": "07003"
+  }
+}
+

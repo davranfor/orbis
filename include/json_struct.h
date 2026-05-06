@@ -9,8 +9,10 @@
 
 #include "json_header.h"
 
+typedef int (*json_validate_callback)(const json_t *, void *);
+
 void *json_compile(char *);
-int json_validate(const json_t *, const void *);
+int json_validate(const json_t *, const void *, json_validate_callback, void *);
 
 #endif
 

@@ -1,17 +1,12 @@
 (object
-    (property "name" (string))
+    (property "name" (string (minLength 1) (maxLength 50)))
     (property "age" (integer (min 0) (max 120)))
     (property "address"
         (object
-            (property "street" (string (maxLength 50)))
+            (property "street" (string))
             (property "city" (string))
             (property "state" (string))
-            (property "postalCode" (string (pattern "\\d{5}")))
-        )
-    )
-    (property "hobbies"
-        (array
-            (item (string))
+            (property "postalCode" (string (pattern "^[0-9]{5}$")))
         )
     )
 )
