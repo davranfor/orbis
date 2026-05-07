@@ -40,6 +40,18 @@ enum { KEYWORD(KEYWORD_ENUM) NKEYWORDS, INVALID_KEYWORD };
 #define KEYWORD_TEXT(a, b) b,
 static const char *keywords[] = { KEYWORD(KEYWORD_TEXT) };
 
+static unsigned keyword_id(const char *keyword)
+{
+    for (unsigned i = 0; i < NKEYWORDS; i++)
+    {
+        if (!strcmp(keywords[i], keyword))
+        {
+            return i;
+        }
+    }
+    return INVALID_KEYWORD;
+}
+
 /******************************************************************************
  EVAL CODE
 ******************************************************************************/
@@ -56,15 +68,15 @@ typedef struct
 
 typedef struct code
 {
-    int (*eval)(const struct code *, schema_t *schema);
+    int (*action)(const struct code *, schema_t *schema);
     union { char *string; double number; };
 } code_t;
 
 static int eval_code(const code_t *code, schema_t *schema)
 {
-    for (int inc = 0; code->eval != NULL; code += inc)
+    for (int iter = 0; code->action != NULL; code += iter)
     {
-        if ((inc = code->eval(code, schema)) == 0)
+        if ((iter = code->action(code, schema)) == 0)
         {
             return 0;
         }
@@ -157,26 +169,44 @@ static int eval_array_end(const code_t *code, schema_t *schema)
     return -(int)code->number;
 }
 
-static int eval_scalar(const code_t *code, schema_t *schema)
+static int eval_string(const code_t *code, schema_t *schema)
 {
-    printf("scalar: %s\n", keywords[(unsigned)code->number]);
+    printf("string\n");
 
-    switch ((unsigned)code->number)
-    {
-        case KEYWORD_STRING:
-            return schema->node->type == JSON_STRING;
-        case KEYWORD_INTEGER:
-            return schema->node->type == JSON_INTEGER;
-        case KEYWORD_NUMBER:
-            return (schema->node->type & JSON_NUMBER) != 0;
-        case KEYWORD_BOOLEAN:
-            return (schema->node->type & JSON_BOOLEAN) != 0;
-        case KEYWORD_NULL:
-            return schema->node->type == JSON_NULL;
-        default:
-            return 0;
-    }
-    return 1;
+    (void)code;
+    return schema->node->type == JSON_STRING;
+}
+
+static int eval_integer(const code_t *code, schema_t *schema)
+{
+    printf("integer\n");
+
+    (void)code;
+    return schema->node->type == JSON_INTEGER;
+}
+
+static int eval_number(const code_t *code, schema_t *schema)
+{
+    printf("number\n");
+
+    (void)code;
+    return (schema->node->type & JSON_NUMBER) != 0;
+}
+
+static int eval_boolean(const code_t *code, schema_t *schema)
+{
+    printf("boolean\n");
+
+    (void)code;
+    return (schema->node->type & JSON_BOOLEAN) != 0;
+}
+
+static int eval_null(const code_t *code, schema_t *schema)
+{
+    printf("null\n");
+
+    (void)code;
+    return schema->node->type == JSON_NULL;
 }
 
 static int eval_property(const code_t *code, schema_t *schema)
@@ -299,19 +329,6 @@ static code_t *frame_resize(frame_t *frame)
     return &frame->code[frame->size++];
 }
 
-static unsigned keyword_id(const char *keyword)
-{
-    for (unsigned i = 0; i < NKEYWORDS; i++)
-    {
-        if (!strcmp(keywords[i], keyword))
-        {
-            return i;
-        }
-    }
-    printf("keyword %s not found\n", keyword);
-    return INVALID_KEYWORD;
-}
-
 static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
 {
     frame_t *frame = event->data;
@@ -357,7 +374,7 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
     }
 }
 
-static int keyword_is_valid(const sexp_event_t *event)
+static int expression_is_valid(const sexp_event_t *event)
 {
     frame_t *frame = event->data;
     path_t *path = &frame->path[event->depth];
@@ -391,6 +408,7 @@ static int push_symbol(const sexp_event_t *event)
 
     if (keyword == INVALID_KEYWORD)
     {
+        printf("keyword %s not found\n", event->string);
         return 0;
     }
     if (!keyword_is_expected(event, keyword))
@@ -420,48 +438,55 @@ static int push_symbol(const sexp_event_t *event)
     switch (keyword)
     {
         case KEYWORD_OBJECT:
-            code->eval = eval_object;
+            code->action = eval_object;
             break;
         case KEYWORD_ARRAY:
-            code->eval = eval_array;
+            code->action = eval_array;
             break;
         case KEYWORD_STRING:
+            code->action = eval_string;
+            break;
         case KEYWORD_INTEGER:
+            code->action = eval_integer;
+            break;
         case KEYWORD_NUMBER:
+            code->action = eval_number;
+            break;
         case KEYWORD_BOOLEAN:
+            code->action = eval_boolean;
+            break;
         case KEYWORD_NULL:
-            code->eval = eval_scalar;
-            code->number = keyword;
+            code->action = eval_null;
             break;
         case KEYWORD_PROPERTY:
-            code->eval = eval_property;
+            code->action = eval_property;
             break;
         case KEYWORD_ITEM:
-            code->eval = eval_item;
+            code->action = eval_item;
             break;
         case KEYWORD_PATTERN:
-            code->eval = eval_pattern;
+            code->action = eval_pattern;
             break;
         case KEYWORD_FORMAT:
-            code->eval = eval_format;
+            code->action = eval_format;
             break;
         case KEYWORD_MASK:
-            code->eval = eval_mask;
+            code->action = eval_mask;
             break;
         case KEYWORD_MIN_LENGTH:
-            code->eval = eval_min_length;
+            code->action = eval_min_length;
             break;
         case KEYWORD_MAX_LENGTH:
-            code->eval = eval_max_length;
+            code->action = eval_max_length;
             break;
         case KEYWORD_MIN:
-            code->eval = eval_min;
+            code->action = eval_min;
             break;
         case KEYWORD_MAX:
-            code->eval = eval_max;
+            code->action = eval_max;
             break;
         case KEYWORD_MULTIPLE_OF:
-            code->eval = eval_multiple_of;
+            code->action = eval_multiple_of;
             break;
         default:
             return 0;
@@ -471,7 +496,7 @@ static int push_symbol(const sexp_event_t *event)
 
 static int push_symbol_end(const sexp_event_t *event)
 {
-    if (!keyword_is_valid(event))
+    if (!expression_is_valid(event))
     {
         return 0;
     }
@@ -488,13 +513,13 @@ static int push_symbol_end(const sexp_event_t *event)
         {
             return 0;
         }
-        code->eval = eval_object_end;
+        code->action = eval_object_end;
     }
     if (path->keyword == KEYWORD_ARRAY)
     {
         if (path->size != 1)
         {
-            code->eval = eval_tuple;
+            code->action = eval_tuple;
             code->number = path->size;
         }
         code = frame_resize(frame);
@@ -504,12 +529,12 @@ static int push_symbol_end(const sexp_event_t *event)
         }
         if (path->size == 1)
         {
-            code->eval = eval_array_end;
+            code->action = eval_array_end;
             code->number = frame->size - path->index - 2;
         }
         else
         {
-            code->eval = eval_tuple_end;
+            code->action = eval_tuple_end;
         }
     }
     if (event->depth == 0)
