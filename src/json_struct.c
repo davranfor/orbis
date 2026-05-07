@@ -52,6 +52,25 @@ static unsigned keyword_id(const char *keyword)
     return INVALID_KEYWORD;
 }
 
+static int keyword_is_type(unsigned keyword)
+{
+    switch (keyword)
+    {
+        case KEYWORD_OBJECT:
+        case KEYWORD_ARRAY:
+        case KEYWORD_STRING:
+        case KEYWORD_INTEGER:
+        case KEYWORD_NUMBER:
+        case KEYWORD_BOOLEAN:
+        case KEYWORD_NULL:
+        case KEYWORD_PROPERTY:
+        case KEYWORD_ITEM:
+            return 1;
+        default:
+            return 0;
+    } 
+}
+
 /******************************************************************************
  EVAL CODE
 ******************************************************************************/
@@ -331,8 +350,8 @@ static code_t *frame_resize(frame_t *frame)
 
 static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
 {
-    frame_t *frame = event->data;
-    path_t *parent = event->depth ? &frame->path[event->depth - 1] : NULL;
+    const frame_t *frame = event->data;
+    const path_t *parent = event->depth ? &frame->path[event->depth - 1] : NULL;
 
     switch (keyword)
     {
@@ -376,9 +395,8 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
 
 static int expression_is_valid(const sexp_event_t *event)
 {
-    frame_t *frame = event->data;
-    path_t *path = &frame->path[event->depth];
-    path_t *parent = event->depth ? &path[-1] : NULL;
+    const frame_t *frame = event->data;
+    const path_t *path = &frame->path[event->depth];
 
     switch (path->keyword)
     {
@@ -394,7 +412,7 @@ static int expression_is_valid(const sexp_event_t *event)
         case KEYWORD_MIN:
         case KEYWORD_MAX:
         case KEYWORD_MULTIPLE_OF:
-            return parent->keyword == KEYWORD_INTEGER
+            return path[-1].keyword == KEYWORD_INTEGER
                 ? path->type == SEXP_INTEGER
                 : (path->type & SEXP_NUMBER) != 0;
         default:
@@ -431,7 +449,7 @@ static int push_symbol(const sexp_event_t *event)
     {
         return 0;
     }
-    if ((event->depth > 0) && (keyword <= KEYWORD_ITEM))
+    if (event->depth && keyword_is_type(keyword))
     {
         path[-1].size++;
     }
