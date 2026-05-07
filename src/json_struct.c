@@ -48,6 +48,7 @@ typedef struct
 {
     const json_t *node;
     const json_t *path[JSON_MAX_DEPTH];
+    unsigned item[JSON_MAX_DEPTH];
     unsigned depth;
     json_validate_callback callback;
     void *data;
@@ -61,9 +62,9 @@ typedef struct code
 
 static int eval_code(const code_t *code, schema_t *schema)
 {
-    for (; code->eval != NULL; code++)
+    for (int inc = 0; code->eval != NULL; code += inc)
     {
-        if (!code->eval(code, schema))
+        if ((inc = code->eval(code, schema)) == 0)
         {
             return 0;
         }
@@ -97,14 +98,71 @@ static int eval_object_end(const code_t *code, schema_t *schema)
     return 1;
 }
 
+static int eval_tuple(const code_t *code, schema_t *schema)
+{
+    printf("tuple\n");
+
+    if (schema->node->type != JSON_ARRAY)
+    {
+        return 0;
+    }
+
+    printf("size: %u\n", (unsigned)code->number);
+
+    if (schema->node->size != (unsigned)code->number)
+    {
+        return 0;
+    }
+    schema->path[schema->depth] = schema->node;
+    schema->item[schema->depth] = 0;
+    schema->depth++;
+    return 1;
+}
+
+static int eval_tuple_end(const code_t *code, schema_t *schema)
+{
+    (void)code;
+    schema->node = schema->path[--schema->depth];
+    return 1;
+}
+
+static int eval_array(const code_t *code, schema_t *schema)
+{
+    printf("array\n");
+
+    (void)code;
+    if (schema->node->type != JSON_ARRAY)
+    {
+        return 0;
+    }
+    if (schema->node->size == 0)
+    {
+        return 0;
+    }
+    schema->path[schema->depth] = schema->node;
+    schema->item[schema->depth] = 0;
+    schema->depth++;
+    return 1;
+}
+
+static int eval_array_end(const code_t *code, schema_t *schema)
+{
+    const json_t *array = schema->path[schema->depth - 1]; 
+
+    if (schema->item[schema->depth - 1] == array->size)
+    {
+        schema->node = schema->path[--schema->depth];
+        return 1;
+    }
+    return -(int)code->number;
+}
+
 static int eval_scalar(const code_t *code, schema_t *schema)
 {
     printf("scalar: %s\n", keywords[(unsigned)code->number]);
 
     switch ((unsigned)code->number)
     {
-        case KEYWORD_ARRAY:
-            return schema->node->type == JSON_ARRAY;
         case KEYWORD_STRING:
             return schema->node->type == JSON_STRING;
         case KEYWORD_INTEGER:
@@ -138,66 +196,77 @@ static int eval_property(const code_t *code, schema_t *schema)
 
 static int eval_item(const code_t *code, schema_t *schema)
 {
+    printf("item: %u\n", schema->item[schema->depth - 1]);
+
     (void)code;
-    (void)schema;
-    printf("item\n");
+
+    const json_t *array = schema->path[schema->depth - 1]; 
+    unsigned *index = &schema->item[schema->depth - 1];
+    const json_t *node = json_at(array, *index);
+
+    if (node == NULL)
+    {
+        return 0;
+    }
+    schema->node = node;
+    (*index)++;
     return 1;
 }
 
 static int eval_pattern(const code_t *code, schema_t *schema)
 {
     printf("pattern: %s\n", code->string);
+
     return test_regex(schema->node->string, code->string);
 }
 
 static int eval_format(const code_t *code, schema_t *schema)
 {
     printf("format: %s\n", code->string);
+
     return test_match(schema->node->string, code->string);
 }
 
 static int eval_mask(const code_t *code, schema_t *schema)
 {
     printf("mask: %s\n", code->string);
+
     return test_mask(schema->node->string, code->string) != NULL;
 }
 
 static int eval_min_length(const code_t *code, schema_t *schema)
 {
     printf("minLength: %zu\n", (size_t)code->number);
+
     return string_length(schema->node->string) >= (size_t)code->number;
 }
 
 static int eval_max_length(const code_t *code, schema_t *schema)
 {
     printf("maxLength: %zu\n", (size_t)code->number);
+
     return string_length(schema->node->string) <= (size_t)code->number;
 }
 
 static int eval_min(const code_t *code, schema_t *schema)
 {
     printf("min: %f\n", code->number);
+
     return schema->node->number >= code->number;
 }
 
 static int eval_max(const code_t *code, schema_t *schema)
 {
     printf("max: %f\n", code->number);
+
     return schema->node->number <= code->number;
 }
 
 static int eval_multiple_of(const code_t *code, schema_t *schema)
 {
     printf("multipleOf: %f\n", code->number);
-    return fmod(schema->node->number, code->number) == 0.0;
-}
 
-static int eval_dummy(const code_t *code, schema_t *schema)
-{
-    (void)code;
-    (void)schema;
-    printf("...\n");
-    return 1;
+    return fmod(schema->node->number, code->number) == 0.0;
 }
 
 /******************************************************************************
@@ -258,7 +327,8 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
         case KEYWORD_BOOLEAN:
         case KEYWORD_NULL:
             return parent != NULL
-                ? parent->keyword != KEYWORD_PROPERTY
+                ? parent->size > 0 ? 0
+                : parent->keyword != KEYWORD_PROPERTY
                     ? parent->keyword == KEYWORD_ITEM
                     : parent->type == SEXP_STRING
                 : 1;
@@ -343,7 +413,7 @@ static int push_symbol(const sexp_event_t *event)
     {
         return 0;
     }
-    if (event->depth > 0)
+    if ((event->depth > 0) && (keyword <= KEYWORD_ITEM))
     {
         path[-1].size++;
     }
@@ -353,6 +423,8 @@ static int push_symbol(const sexp_event_t *event)
             code->eval = eval_object;
             break;
         case KEYWORD_ARRAY:
+            code->eval = eval_array;
+            break;
         case KEYWORD_STRING:
         case KEYWORD_INTEGER:
         case KEYWORD_NUMBER:
@@ -392,8 +464,7 @@ static int push_symbol(const sexp_event_t *event)
             code->eval = eval_multiple_of;
             break;
         default:
-            code->eval = eval_dummy;
-            break;
+            return 0;
     }
     return 1;
 }
@@ -418,6 +489,28 @@ static int push_symbol_end(const sexp_event_t *event)
             return 0;
         }
         code->eval = eval_object_end;
+    }
+    if (path->keyword == KEYWORD_ARRAY)
+    {
+        if (path->size != 1)
+        {
+            code->eval = eval_tuple;
+            code->number = path->size;
+        }
+        code = frame_resize(frame);
+        if (code == NULL)
+        {
+            return 0;
+        }
+        if (path->size == 1)
+        {
+            code->eval = eval_array_end;
+            code->number = frame->size - path->index - 2;
+        }
+        else
+        {
+            code->eval = eval_tuple_end;
+        }
     }
     if (event->depth == 0)
     {
