@@ -315,12 +315,20 @@ static int eval_multiple_of(const code_t *code, schema_t *schema)
 {
     printf("multipleOf: %f\n", code->number);
 
-    return fmod(schema->node->number, code->number) == 0.0;
+    double quotient = schema->node->number / code->number;
+
+    return fabs(quotient - round(quotient)) < 1e-9;
 }
 
 /******************************************************************************
  COMPILE CODE
 ******************************************************************************/
+
+#ifdef DEBUG
+    #define log(...) fprintf(stderr, __VA_ARGS__)
+#else
+    #define log(...) ((void)0)
+#endif
 
 typedef struct { unsigned keyword, index, type, size; } path_t;
 typedef struct
@@ -410,10 +418,14 @@ static int expression_is_valid(const sexp_event_t *event)
                    (frame->code[path->index].number >= 0);
         case KEYWORD_MIN:
         case KEYWORD_MAX:
-        case KEYWORD_MULTIPLE_OF:
             return path[-1].keyword == KEYWORD_INTEGER
-                ? path->type == SEXP_INTEGER
-                : (path->type & SEXP_NUMBER) != 0;
+                    ? path->type == SEXP_INTEGER
+                    : (path->type & SEXP_NUMBER) != 0;
+        case KEYWORD_MULTIPLE_OF:
+            return (path[-1].keyword == KEYWORD_INTEGER
+                    ? path->type == SEXP_INTEGER
+                    : (path->type & SEXP_NUMBER) != 0
+                   ) && (frame->code[path->index].number > 0);
         default:
             return path->type == SEXP_UNDEFINED;
     }
@@ -425,12 +437,12 @@ static int push_symbol(const sexp_event_t *event)
 
     if (keyword == INVALID_KEYWORD)
     {
-        printf("keyword %s not found\n", event->string);
+        log("keyword '%s' not found\n", event->string);
         return 0;
     }
     if (!keyword_is_expected(event, keyword))
     {
-        printf("Unexpected keyword %s\n", keywords[keyword]); 
+        log("Unexpected keyword '%s'\n", event->string); 
         return 0;
     }
 
@@ -513,15 +525,17 @@ static int push_symbol(const sexp_event_t *event)
 
 static int push_symbol_end(const sexp_event_t *event)
 {
-    if (!expression_is_valid(event))
-    {
-        return 0;
-    }
-
     frame_t *frame = event->data;
     path_t *path = &frame->path[event->depth];
     code_t *code = &frame->code[path->index];
 
+    if (!expression_is_valid(event))
+    {
+        log("Expression '%s' is not valid\n",
+            keywords[path->keyword]
+        );
+        return 0;
+    }
     if (path->keyword == KEYWORD_OBJECT)
     {
         code->number = path->size;
@@ -569,6 +583,9 @@ static int push_scalar(const sexp_event_t *event)
     
     if (parent->type != SEXP_UNDEFINED)
     {
+        event->type == SEXP_STRING
+            ? log("Unexpected scalar '%s'\n", event->string)
+            : log("Unexpected scalar '%g'\n", event->number);
         return 0;
     }
     if (event->type == SEXP_STRING)
@@ -596,6 +613,7 @@ static int compile(const sexp_event_t *event)
         case SEXP_REAL:
             return push_scalar(event);
         default:
+            log("Unexpected event: %u\n", event->type);
             return 0;
     }
 }
