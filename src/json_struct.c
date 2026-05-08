@@ -362,8 +362,7 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
         case KEYWORD_NUMBER:
         case KEYWORD_BOOLEAN:
         case KEYWORD_NULL:
-            return parent != NULL
-                ? parent->size > 0 ? 0
+            return parent != NULL ? parent->size ? 0
                 : parent->keyword != KEYWORD_PROPERTY
                     ? parent->keyword == KEYWORD_ITEM
                     : parent->type == SEXP_STRING
@@ -562,7 +561,7 @@ static int push_symbol_end(const sexp_event_t *event)
     return 1;
 }
 
-static int push_string(const sexp_event_t *event)
+static int push_scalar(const sexp_event_t *event)
 {
     frame_t *frame = event->data;
     path_t *parent = &frame->path[event->depth - 1];
@@ -572,38 +571,15 @@ static int push_string(const sexp_event_t *event)
     {
         return 0;
     }
-    parent->type = SEXP_STRING;
-    code->string = event->string;
-    return 1;
-}
-
-static int push_integer(const sexp_event_t *event)
-{
-    frame_t *frame = event->data;
-    path_t *parent = &frame->path[event->depth - 1];
-    code_t *code = &frame->code[parent->index];
-    
-    if (parent->type != SEXP_UNDEFINED)
+    if (event->type == SEXP_STRING)
     {
-        return 0;
+        code->string = event->string;
     }
-    parent->type = SEXP_INTEGER;
-    code->number = event->number;
-    return 1;
-}
-
-static int push_real(const sexp_event_t *event)
-{
-    frame_t *frame = event->data;
-    path_t *parent = &frame->path[event->depth - 1];
-    code_t *code = &frame->code[parent->index];
-    
-    if (parent->type != SEXP_UNDEFINED)
+    else
     {
-        return 0;
+        code->number = event->number;
     }
-    parent->type = SEXP_NUMBER;
-    code->number = event->number;
+    parent->type = event->type;
     return 1;
 }
 
@@ -616,11 +592,9 @@ static int compile(const sexp_event_t *event)
         case SEXP_SYMBOL_END:
             return push_symbol_end(event);
         case SEXP_STRING:
-            return push_string(event);
         case SEXP_INTEGER:
-            return push_integer(event);
         case SEXP_REAL:
-            return push_real(event);
+            return push_scalar(event);
         default:
             return 0;
     }
