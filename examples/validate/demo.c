@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
     }
     if (!(code = json_compile(file[1])))
     {
-        perror("json_compile");
+        fprintf(stderr, "'%s' doesn't compile\n", path[1]);
         goto fail;
     }
     if (!(rc = json_validate(node, code, NULL, NULL)))

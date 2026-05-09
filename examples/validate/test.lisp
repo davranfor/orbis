@@ -9,5 +9,6 @@
             (property "postalCode" (string (pattern "^[0-9]{5}$")))
         )
     )
+    (property)
 )
 
