@@ -301,20 +301,6 @@ static int eval_mask(const code_t *code, schema_t *schema)
     return test_mask(schema->node->string, code->string) != NULL;
 }
 
-static int eval_min_length(const code_t *code, schema_t *schema)
-{
-    printf("minLength: %zu\n", (size_t)code->number);
-
-    return string_length(schema->node->string) >= (size_t)code->number;
-}
-
-static int eval_max_length(const code_t *code, schema_t *schema)
-{
-    printf("maxLength: %zu\n", (size_t)code->number);
-
-    return string_length(schema->node->string) <= (size_t)code->number;
-}
-
 static int eval_min(const code_t *code, schema_t *schema)
 {
     printf("min: %f\n", code->number);
@@ -524,12 +510,6 @@ static int push_symbol(const sexp_event_t *event)
         case KEYWORD_MASK:
             code->action = eval_mask;
             break;
-        case KEYWORD_MIN_LENGTH:
-            code->action = eval_min_length;
-            break;
-        case KEYWORD_MAX_LENGTH:
-            code->action = eval_max_length;
-            break;
         case KEYWORD_MIN:
             code->action = eval_min;
             break;
@@ -538,6 +518,9 @@ static int push_symbol(const sexp_event_t *event)
             break;
         case KEYWORD_MULTIPLE_OF:
             code->action = eval_multiple_of;
+            break;
+        case KEYWORD_MIN_LENGTH:
+        case KEYWORD_MAX_LENGTH:
             break;
         default:
             return 0;
