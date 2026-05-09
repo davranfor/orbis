@@ -437,7 +437,7 @@ static int push_symbol(const sexp_event_t *event)
 
     if (keyword == INVALID_KEYWORD)
     {
-        log("keyword '%s' not found\n", event->string);
+        log("Invalid keyword '%s'\n", event->string);
         return 0;
     }
     if (!keyword_is_expected(event, keyword))
@@ -531,9 +531,7 @@ static int push_symbol_end(const sexp_event_t *event)
 
     if (!expression_is_valid(event))
     {
-        log("Expression '%s' is not valid\n",
-            keywords[path->keyword]
-        );
+        log("Malformed expression '%s'\n", keywords[path->keyword]);
         return 0;
     }
     if (path->keyword == KEYWORD_OBJECT)
