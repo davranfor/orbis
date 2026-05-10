@@ -87,7 +87,12 @@ typedef struct
 typedef struct code
 {
     int (*action)(const struct code *, schema_t *schema);
-    union { char *string; double number; unsigned pair[2]; };
+    union
+    {
+        char *string;
+        double number;
+        unsigned pair[2];
+    };
 } code_t;
 
 static int eval_code(const code_t *code, schema_t *schema)
@@ -105,17 +110,16 @@ static int eval_code(const code_t *code, schema_t *schema)
 static int eval_object(const code_t *code, schema_t *schema)
 {
     printf("object: %u properties\nadditionalProperties: %s\n",
-        code->pair[0],
-        code->pair[1] == -1u ? "true" : "false");
+        code->pair[1], code->pair[0] ? "true" : "false");
 
     if (schema->node->type != JSON_OBJECT)
     {
         return 0;
     }
 
-    int valid = code->pair[1] == -1u
-        ? schema->node->size >= code->pair[0]
-        : schema->node->size == code->pair[0];
+    int valid = code->pair[0]
+        ? schema->node->size >= code->pair[1]
+        : schema->node->size == code->pair[1];
 
     if (valid)
     {
@@ -170,7 +174,7 @@ static int eval_array(const code_t *code, schema_t *schema)
     }
     if (schema->node->size == 0)
     {
-        return 0;
+        return (int)code->number;
     }
     schema->path[schema->depth] = schema->node;
     schema->item[schema->depth] = 0;
@@ -194,23 +198,8 @@ static int eval_string(const code_t *code, schema_t *schema)
 {
     printf("string\n");
 
-    if (schema->node->type != JSON_STRING)
-    {
-        return 0;
-    }
-
-    unsigned min_length = code->pair[0];
-    unsigned max_length = code->pair[1];
-
-    if ((min_length > 0) || (max_length < -1u))
-    {
-        size_t length = string_length(schema->node->string);
-
-        printf("minLength: %u\n", min_length);
-        printf("maxLength: %u\n", max_length);
-        return (length >= min_length) && (length <= max_length);
-    }
-    return 1;
+    (void)code;
+    return schema->node->type == JSON_STRING;
 }
 
 static int eval_integer(const code_t *code, schema_t *schema)
@@ -273,8 +262,7 @@ static int eval_item(const code_t *code, schema_t *schema)
 
     if (array->size > *index)
     {
-        schema->node = &array->child[*index];
-        (*index)++;
+        schema->node = &array->child[(*index)++];
         return 1;
     }
     return 0;
@@ -301,6 +289,19 @@ static int eval_mask(const code_t *code, schema_t *schema)
     return test_mask(schema->node->string, code->string) != NULL;
 }
 
+static int eval_min_length(const code_t *code, schema_t *schema)
+{
+    printf("minLength: %zu\n", (size_t)code->number);
+
+    return string_length(schema->node->string) >= (size_t)code->number;
+}
+
+static int eval_max_length(const code_t *code, schema_t *schema)
+{
+    printf("maxLength: %zu\n", (size_t)code->number);
+
+    return string_length(schema->node->string) <= (size_t)code->number;
+}
 static int eval_min(const code_t *code, schema_t *schema)
 {
     printf("min: %f\n", code->number);
@@ -422,8 +423,7 @@ static int expression_is_valid(const sexp_event_t *event)
         case KEYWORD_MIN_LENGTH:
         case KEYWORD_MAX_LENGTH:
             return (path->type == SEXP_INTEGER) &&
-                   (frame->code[path->index].number >= 0) &&
-                   (frame->code[path->index].number <= -1u);
+                   (frame->code[path->index].number >= 0);
         case KEYWORD_MIN:
         case KEYWORD_MAX:
             return path[-1].keyword == KEYWORD_INTEGER
@@ -510,6 +510,12 @@ static int push_symbol(const sexp_event_t *event)
         case KEYWORD_MASK:
             code->action = eval_mask;
             break;
+        case KEYWORD_MIN_LENGTH:
+            code->action = eval_min_length;
+            break;
+        case KEYWORD_MAX_LENGTH:
+            code->action = eval_max_length;
+            break;
         case KEYWORD_MIN:
             code->action = eval_min;
             break;
@@ -518,9 +524,6 @@ static int push_symbol(const sexp_event_t *event)
             break;
         case KEYWORD_MULTIPLE_OF:
             code->action = eval_multiple_of;
-            break;
-        case KEYWORD_MIN_LENGTH:
-        case KEYWORD_MAX_LENGTH:
             break;
         default:
             return 0;
@@ -542,7 +545,7 @@ static int push_symbol_end(const sexp_event_t *event)
     switch (path->keyword)
     {
         case KEYWORD_OBJECT:
-            code->pair[0] = path->size;
+            code->pair[1] = path->size;
             code = frame_resize(frame);
             if (code == NULL)
             {
@@ -565,6 +568,7 @@ static int push_symbol_end(const sexp_event_t *event)
             {
                 code->action = eval_array_end;
                 code->number = frame->size - path->index - 2;
+                frame->code[path->index].number = code->number + 2;
             }
             else
             {
@@ -574,22 +578,11 @@ static int push_symbol_end(const sexp_event_t *event)
         case KEYWORD_PROPERTY:
             if ((path->type == SEXP_UNDEFINED) && (path->size == 0))
             {
-                frame->code[path[-1].index].pair[1] = -1u;
+                frame->code[path[-1].index].pair[0] = 1;
                 path[-1].size--;
                 frame->size--;
             }
             break;
-        case KEYWORD_STRING:
-            code->pair[1] = -1u;
-            break;
-        case KEYWORD_MIN_LENGTH:
-            frame->code[path[-1].index].pair[0] = (unsigned)code->number;
-            frame->size--;
-            break; 
-        case KEYWORD_MAX_LENGTH:
-            frame->code[path[-1].index].pair[1] = (unsigned)code->number;
-            frame->size--;
-            break; 
     }
     if (event->depth == 0)
     {
