@@ -17,6 +17,7 @@
 
 #define KEYWORD(_)                          \
     _(KEYWORD_OBJECT,       "object")       \
+    _(KEYWORD_TUPLE,        "tuple")        \
     _(KEYWORD_ARRAY,        "array")        \
     _(KEYWORD_STRING,       "string")       \
     _(KEYWORD_INTEGER,      "integer")      \
@@ -439,6 +440,66 @@ static int expression_is_valid(const sexp_event_t *event)
     }
 }
 
+static int code_set_action(code_t *code, unsigned keyword)
+{
+    switch (keyword)
+    {
+        case KEYWORD_OBJECT:
+            code->action = eval_object;
+            return 1;
+        case KEYWORD_ARRAY:
+            code->action = eval_array;
+            return 1;
+        case KEYWORD_STRING:
+            code->action = eval_string;
+            return 1;
+        case KEYWORD_INTEGER:
+            code->action = eval_integer;
+            return 1;
+        case KEYWORD_NUMBER:
+            code->action = eval_number;
+            return 1;
+        case KEYWORD_BOOLEAN:
+            code->action = eval_boolean;
+            return 1;
+        case KEYWORD_NULL:
+            code->action = eval_null;
+            return 1;
+        case KEYWORD_PROPERTY:
+            code->action = eval_property;
+            return 1;
+        case KEYWORD_ITEM:
+            code->action = eval_item;
+            return 1;
+        case KEYWORD_PATTERN:
+            code->action = eval_pattern;
+            return 1;
+        case KEYWORD_FORMAT:
+            code->action = eval_format;
+            return 1;
+        case KEYWORD_MASK:
+            code->action = eval_mask;
+            return 1;
+        case KEYWORD_MIN_LENGTH:
+            code->action = eval_min_length;
+            return 1;
+        case KEYWORD_MAX_LENGTH:
+            code->action = eval_max_length;
+            return 1;
+        case KEYWORD_MIN:
+            code->action = eval_min;
+            return 1;
+        case KEYWORD_MAX:
+            code->action = eval_max;
+            return 1;
+        case KEYWORD_MULTIPLE_OF:
+            code->action = eval_multiple_of;
+            return 1;
+        default:
+            return 0;
+    }
+}
+
 static int push_symbol(const sexp_event_t *event)
 {
     unsigned keyword = keyword_id(event->string);
@@ -472,63 +533,7 @@ static int push_symbol(const sexp_event_t *event)
     {
         path[-1].size++;
     }
-    switch (keyword)
-    {
-        case KEYWORD_OBJECT:
-            code->action = eval_object;
-            break;
-        case KEYWORD_ARRAY:
-            code->action = eval_array;
-            break;
-        case KEYWORD_STRING:
-            code->action = eval_string;
-            break;
-        case KEYWORD_INTEGER:
-            code->action = eval_integer;
-            break;
-        case KEYWORD_NUMBER:
-            code->action = eval_number;
-            break;
-        case KEYWORD_BOOLEAN:
-            code->action = eval_boolean;
-            break;
-        case KEYWORD_NULL:
-            code->action = eval_null;
-            break;
-        case KEYWORD_PROPERTY:
-            code->action = eval_property;
-            break;
-        case KEYWORD_ITEM:
-            code->action = eval_item;
-            break;
-        case KEYWORD_PATTERN:
-            code->action = eval_pattern;
-            break;
-        case KEYWORD_FORMAT:
-            code->action = eval_format;
-            break;
-        case KEYWORD_MASK:
-            code->action = eval_mask;
-            break;
-        case KEYWORD_MIN_LENGTH:
-            code->action = eval_min_length;
-            break;
-        case KEYWORD_MAX_LENGTH:
-            code->action = eval_max_length;
-            break;
-        case KEYWORD_MIN:
-            code->action = eval_min;
-            break;
-        case KEYWORD_MAX:
-            code->action = eval_max;
-            break;
-        case KEYWORD_MULTIPLE_OF:
-            code->action = eval_multiple_of;
-            break;
-        default:
-            return 0;
-    }
-    return 1;
+    return code_set_action(code, keyword);
 }
 
 static int push_symbol_end(const sexp_event_t *event)
