@@ -1,32 +1,15 @@
 (object
-  (property "root"
-    (object
-      (property "users"
-        (array
-          (item
-            (object
-              (property "id" (integer))
-              (property "tags"
-                (array
-                  (item (string))
-                )
-              )
-            )
-          )
-        )
-      )
-
-      (property "meta"
+    (property "name" (string (minLength 1) (maxLength 50)))
+    (property "age" (integer (min 0) (max 120)))
+    (property "address"
         (object
-          (property "flags"
-            (array
-              (item (string))
-            )
-          )
-          (property "count" (integer))
+            (property "street" (string))
+            (property "city" (string))
+            (property "state" (string))
+            (property "postalCode" (string (pattern "^[0-9]{5}$")))
         )
-      )
     )
-  )
+    (property "items" (array (integer)))
+    (property "end" (null))
 )
 

@@ -1,22 +1,13 @@
 {
-  "root": {
-    "users": [
-      {
-        "id": 1,
-        "tags": []
-      },
-      {
-        "id": 2,
-        "tags": ["a", "b"]
-      },
-      {
-        "id": 3,
-        "tags": []
-      }
-    ],
-    "meta": {
-      "flags": [],
-      "count": 3
-    }
-  }
+  "name": "John Smith",
+  "age": 42,
+  "address": {
+    "street": "Calle del socorro, 42",
+    "city": "Palma de Mallorca",
+    "state": "Baleares",
+    "postalCode": "07003"
+  },
+  "items": [1, 2, 3],
+  "end": null
 }
+

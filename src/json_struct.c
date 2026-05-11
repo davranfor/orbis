@@ -57,14 +57,13 @@ static int keyword_is_type(unsigned keyword)
     switch (keyword)
     {
         case KEYWORD_OBJECT:
+        case KEYWORD_TUPLE:
         case KEYWORD_ARRAY:
         case KEYWORD_STRING:
         case KEYWORD_INTEGER:
         case KEYWORD_NUMBER:
         case KEYWORD_BOOLEAN:
         case KEYWORD_NULL:
-        case KEYWORD_PROPERTY:
-        case KEYWORD_ITEM:
             return 1;
         default:
             return 0;
@@ -92,7 +91,7 @@ typedef struct code
     {
         char *string;
         double number;
-        unsigned pair[2];
+        struct { unsigned size; unsigned short type, flags; };
     };
 } code_t;
 
@@ -110,23 +109,15 @@ static int eval_code(const code_t *code, schema_t *schema)
 
 static int eval_object(const code_t *code, schema_t *schema)
 {
-    printf("object: %u properties\nadditionalProperties: %s\n",
-        code->pair[1], code->pair[0] ? "true" : "false");
+    printf("object\n");
 
+    (void)code;
     if (schema->node->type != JSON_OBJECT)
     {
         return 0;
     }
-
-    int valid = code->pair[0]
-        ? schema->node->size >= code->pair[1]
-        : schema->node->size == code->pair[1];
-
-    if (valid)
-    {
-        schema->path[schema->depth++] = schema->node;
-    }
-    return valid;
+    schema->path[schema->depth++] = schema->node;
+    return 1;
 }
 
 static int eval_object_end(const code_t *code, schema_t *schema)
@@ -140,14 +131,8 @@ static int eval_tuple(const code_t *code, schema_t *schema)
 {
     printf("tuple\n");
 
+    (void)code;
     if (schema->node->type != JSON_ARRAY)
-    {
-        return 0;
-    }
-
-    printf("size: %u\n", (unsigned)code->number);
-
-    if (schema->node->size != (unsigned)code->number)
     {
         return 0;
     }
@@ -175,7 +160,7 @@ static int eval_array(const code_t *code, schema_t *schema)
     }
     if (schema->node->size == 0)
     {
-        return (int)code->number;
+        return (int)code->size;
     }
     schema->path[schema->depth] = schema->node;
     schema->item[schema->depth] = 0;
@@ -192,7 +177,7 @@ static int eval_array_end(const code_t *code, schema_t *schema)
         schema->node = schema->path[--schema->depth];
         return 1;
     }
-    return -(int)code->number;
+    return -(int)code->size;
 }
 
 static int eval_string(const code_t *code, schema_t *schema)
@@ -264,7 +249,25 @@ static int eval_item(const code_t *code, schema_t *schema)
     if (array->size > *index)
     {
         schema->node = &array->child[(*index)++];
-        return 1;
+        switch (code->type)
+        {
+            case KEYWORD_OBJECT:
+                return eval_object(code, schema);
+            case KEYWORD_TUPLE:
+                return eval_tuple(code, schema);
+            case KEYWORD_ARRAY:
+                return eval_array(code, schema);
+            case KEYWORD_STRING:
+                return eval_string(code, schema);
+            case KEYWORD_INTEGER:
+                return eval_integer(code, schema);
+            case KEYWORD_NUMBER:
+                return eval_number(code, schema);
+            case KEYWORD_BOOLEAN:
+                return eval_boolean(code, schema);
+            case KEYWORD_NULL:
+                return eval_null(code, schema);
+        }
     }
     return 0;
 }
@@ -370,17 +373,27 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
     switch (keyword)
     {
         case KEYWORD_OBJECT:
+        case KEYWORD_TUPLE:
         case KEYWORD_ARRAY:
         case KEYWORD_STRING:
         case KEYWORD_INTEGER:
         case KEYWORD_NUMBER:
         case KEYWORD_BOOLEAN:
         case KEYWORD_NULL:
-            return parent != NULL ? parent->size ? 0
-                : parent->keyword != KEYWORD_PROPERTY
-                    ? parent->keyword == KEYWORD_ITEM
-                    : parent->type == SEXP_STRING
-                : 1;
+            if (parent == NULL)
+            {
+                return 1;
+            }
+            switch (parent->keyword)
+            {
+                case KEYWORD_PROPERTY:
+                    return parent->type == SEXP_STRING;
+                case KEYWORD_ARRAY:
+                    return parent->size == 0;
+                case KEYWORD_TUPLE:
+                    return 1;
+            }
+            return 0;
         case KEYWORD_PROPERTY:
             return (parent != NULL) &&
                    (parent->keyword == KEYWORD_OBJECT);
@@ -468,9 +481,6 @@ static int code_set_action(code_t *code, unsigned keyword)
         case KEYWORD_PROPERTY:
             code->action = eval_property;
             return 1;
-        case KEYWORD_ITEM:
-            code->action = eval_item;
-            return 1;
         case KEYWORD_PATTERN:
             code->action = eval_pattern;
             return 1;
@@ -529,9 +539,15 @@ static int push_symbol(const sexp_event_t *event)
     {
         return 0;
     }
-    if (event->depth && keyword_is_type(keyword))
+    if (event->depth && keyword_is_type(keyword)) 
     {
         path[-1].size++;
+        if (path[-1].keyword != KEYWORD_PROPERTY)
+        {
+            code->type = (unsigned short)keyword;
+            code->action = eval_item;
+            return 1;
+        }
     }
     return code_set_action(code, keyword);
 }
@@ -550,7 +566,6 @@ static int push_symbol_end(const sexp_event_t *event)
     switch (path->keyword)
     {
         case KEYWORD_OBJECT:
-            code->pair[1] = path->size;
             code = frame_resize(frame);
             if (code == NULL)
             {
@@ -559,34 +574,14 @@ static int push_symbol_end(const sexp_event_t *event)
             code->action = eval_object_end;
             break;
         case KEYWORD_ARRAY:
-            if (path->size != 1)
-            {
-                code->action = eval_tuple;
-                code->number = path->size;
-            }
             code = frame_resize(frame);
             if (code == NULL)
             {
                 return 0;
             }
-            if (path->size == 1)
-            {
-                code->action = eval_array_end;
-                code->number = frame->size - path->index - 2;
-                frame->code[path->index].number = code->number + 2;
-            }
-            else
-            {
-                code->action = eval_tuple_end;
-            }
-            break;
-        case KEYWORD_PROPERTY:
-            if ((path->type == SEXP_UNDEFINED) && (path->size == 0))
-            {
-                frame->code[path[-1].index].pair[0] = 1;
-                path[-1].size--;
-                frame->size--;
-            }
+            code->action = eval_array_end;
+            code->size = frame->size - path->index - 2;
+            frame->code[path->index].size = code->size + 2;
             break;
     }
     if (event->depth == 0)
