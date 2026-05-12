@@ -10,6 +10,7 @@
         )
     )
     (property "items" (array (integer)))
+    (property "tuple" (tuple (string) (string) (string)))
     (property "end" (null))
 )
 

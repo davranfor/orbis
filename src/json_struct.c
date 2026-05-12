@@ -15,6 +15,8 @@
 #include "json_private.h"
 #include "json_struct.h"
 
+#define JUMP 2
+
 #define KEYWORD(_)                          \
     _(KEYWORD_OBJECT,       "object")       \
     _(KEYWORD_TUPLE,        "tuple")        \
@@ -25,7 +27,6 @@
     _(KEYWORD_BOOLEAN,      "boolean")      \
     _(KEYWORD_NULL,         "null")         \
     _(KEYWORD_PROPERTY,     "property")     \
-    _(KEYWORD_ITEM,         "item")         \
     _(KEYWORD_PATTERN,      "pattern")      \
     _(KEYWORD_FORMAT,       "format")       \
     _(KEYWORD_MASK,         "mask")         \
@@ -151,16 +152,19 @@ static int eval_tuple_end(const code_t *code, schema_t *schema)
 
 static int eval_array(const code_t *code, schema_t *schema)
 {
-    printf("array\n");
+    printf("array size: %u\n", code->size);
 
-    (void)code;
     if (schema->node->type != JSON_ARRAY)
     {
         return 0;
     }
+    if (code->size == 0)
+    {
+        return JUMP;
+    }
     if (schema->node->size == 0)
     {
-        return (int)code->size;
+        return (int)code->size + JUMP;
     }
     schema->path[schema->depth] = schema->node;
     schema->item[schema->depth] = 0;
@@ -240,8 +244,6 @@ static int eval_property(const code_t *code, schema_t *schema)
 static int eval_item(const code_t *code, schema_t *schema)
 {
     printf("item: %u\n", schema->item[schema->depth - 1]);
-
-    (void)code;
 
     const json_t *array = schema->path[schema->depth - 1]; 
     unsigned *index = &schema->item[schema->depth - 1];
@@ -397,9 +399,6 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
         case KEYWORD_PROPERTY:
             return (parent != NULL) &&
                    (parent->keyword == KEYWORD_OBJECT);
-        case KEYWORD_ITEM:
-            return (parent != NULL) &&
-                   (parent->keyword == KEYWORD_ARRAY);
         case KEYWORD_PATTERN:
         case KEYWORD_FORMAT:
         case KEYWORD_MASK:
@@ -459,6 +458,9 @@ static int code_set_action(code_t *code, unsigned keyword)
     {
         case KEYWORD_OBJECT:
             code->action = eval_object;
+            return 1;
+        case KEYWORD_TUPLE:
+            code->action = eval_tuple;
             return 1;
         case KEYWORD_ARRAY:
             code->action = eval_array;
@@ -573,6 +575,14 @@ static int push_symbol_end(const sexp_event_t *event)
             }
             code->action = eval_object_end;
             break;
+        case KEYWORD_TUPLE:
+            code = frame_resize(frame);
+            if (code == NULL)
+            {
+                return 0;
+            }
+            code->action = eval_tuple_end;
+            break;
         case KEYWORD_ARRAY:
             code = frame_resize(frame);
             if (code == NULL)
@@ -580,8 +590,8 @@ static int push_symbol_end(const sexp_event_t *event)
                 return 0;
             }
             code->action = eval_array_end;
-            code->size = frame->size - path->index - 2;
-            frame->code[path->index].size = code->size + 2;
+            code->size = frame->size - path->index - JUMP;
+            frame->code[path->index].size = code->size;
             break;
     }
     if (event->depth == 0)
