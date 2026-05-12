@@ -558,13 +558,15 @@ static int push_symbol_end(const sexp_event_t *event)
 {
     frame_t *frame = event->data;
     path_t *path = &frame->path[event->depth];
-    code_t *code = &frame->code[path->index];
 
     if (!expression_is_valid(event))
     {
         log("Malformed expression '%s'\n", keywords[path->keyword]);
         return 0;
     }
+
+    code_t *code;
+
     switch (path->keyword)
     {
         case KEYWORD_OBJECT:
@@ -605,7 +607,6 @@ static int push_scalar(const sexp_event_t *event)
 {
     frame_t *frame = event->data;
     path_t *parent = &frame->path[event->depth - 1];
-    code_t *code = &frame->code[parent->index];
     
     if (parent->type != SEXP_UNDEFINED)
     {
@@ -614,6 +615,9 @@ static int push_scalar(const sexp_event_t *event)
             : log("Unexpected scalar '%g'\n", event->number);
         return 0;
     }
+
+    code_t *code = &frame->code[parent->index];
+
     if (event->type == SEXP_STRING)
     {
         code->string = event->string;
