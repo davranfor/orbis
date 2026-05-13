@@ -159,10 +159,6 @@ static int eval_array(const code_t *code, schema_t *schema)
     {
         return 0;
     }
-    if (code->size == 0)
-    {
-        return 2;
-    }
 
     const unsigned *pair = code[-1].pair;
 
@@ -170,6 +166,10 @@ static int eval_array(const code_t *code, schema_t *schema)
         (schema->node->size > pair[1]))
     {
         return 0;
+    }
+    if (code->size == 0)
+    {
+        return 2;
     }
     if (schema->node->size == 0)
     {
@@ -571,9 +571,9 @@ static int push_symbol(const sexp_event_t *event)
     if (keyword == KEYWORD_ARRAY)
     {
         path->index++;
-        code->action = eval_array_size;
         code->pair[0] = 0;
         code->pair[1] = -1u;
+        code->action = eval_array_size;
         code = frame_resize(frame);
         if (code == NULL)
         {
