@@ -25,6 +25,7 @@
     _(KEYWORD_BOOLEAN,      "boolean")      \
     _(KEYWORD_NULL,         "null")         \
     _(KEYWORD_PROPERTY,     "property")     \
+    _(KEYWORD_OPTIONAL,     "optional")     \
     _(KEYWORD_MIN_ITEMS,    "minItems")     \
     _(KEYWORD_MAX_ITEMS,    "maxItems")     \
     _(KEYWORD_PATTERN,      "pattern")      \
@@ -75,6 +76,8 @@ static int keyword_is_type(unsigned keyword)
  EVAL CODE
 ******************************************************************************/
 
+enum { FLAG_OPTIONAL = 1, FLAG_ADDITIONAL_PROPERTIES = 2 };
+
 typedef struct
 {
     const json_t *node;
@@ -111,20 +114,31 @@ static int eval_code(const code_t *code, schema_t *schema)
 
 static int eval_object(const code_t *code, schema_t *schema)
 {
-    printf("object\n");
+    printf("object\nadditionalProperties = %s\n",
+        code->flags & FLAG_ADDITIONAL_PROPERTIES ? "true" : "false");
 
     (void)code;
     if (schema->node->type != JSON_OBJECT)
     {
         return 0;
     }
-    schema->path[schema->depth++] = schema->node;
+    schema->path[schema->depth] = schema->node;
+    schema->item[schema->depth] = 0;
+    schema->depth++;
     return 1;
 }
 
 static int eval_object_end(const code_t *code, schema_t *schema)
 {
-    (void)code;
+    if (!(code->flags & FLAG_ADDITIONAL_PROPERTIES))
+    {
+        const json_t *object = schema->path[schema->depth - 1];
+
+        if (object->size != schema->item[schema->depth - 1])
+        {
+            return 0;
+        }
+    }   
     schema->node = schema->path[--schema->depth];
     return 1;
 }
@@ -153,7 +167,7 @@ static int eval_tuple_end(const code_t *code, schema_t *schema)
 
 static int eval_array(const code_t *code, schema_t *schema)
 {
-    printf("array size: %u\n", code->size);
+    printf("array\n");
 
     if (schema->node->type != JSON_ARRAY)
     {
@@ -161,6 +175,9 @@ static int eval_array(const code_t *code, schema_t *schema)
     }
 
     const unsigned *pair = code[-1].pair;
+
+    printf("minItems: %u\n", pair[0]);
+    printf("maxItems: %u\n", pair[1]);
 
     if ((schema->node->size < pair[0]) ||
         (schema->node->size > pair[1]))
@@ -183,9 +200,7 @@ static int eval_array(const code_t *code, schema_t *schema)
 
 static int eval_array_size(const code_t *code, schema_t *schema)
 {
-    printf("minItems: %u\n", code->pair[0]);
-    printf("maxItems: %u\n", code->pair[1]);
-
+    (void)code;
     (void)schema;
     return 1;
 }
@@ -242,9 +257,17 @@ static int eval_null(const code_t *code, schema_t *schema)
     return schema->node->type == JSON_NULL;
 }
 
+static int eval_optional(const code_t *code, schema_t *schema)
+{
+    (void)code;
+    (void)schema;
+    return 1;
+}
+
 static int eval_property(const code_t *code, schema_t *schema)
 {
     printf("property: %s\n", code->string);
+    printf("optional: %s\n", code[-1].flags & FLAG_OPTIONAL ? "true" : "false");
 
     const json_t *object = schema->path[schema->depth - 1]; 
 
@@ -253,16 +276,16 @@ static int eval_property(const code_t *code, schema_t *schema)
         if (!strcmp(object->child[index].key, code->string))
         {
             schema->node = &object->child[index];
+            schema->item[schema->depth - 1]++;
             return 1;
         }
     }
-    return 0;
+
+    return code[-1].flags & FLAG_OPTIONAL ? (int)code[-1].size : 0;
 }
 
 static int eval_item(const code_t *code, schema_t *schema)
 {
-    printf("item: %u\n", schema->item[schema->depth - 1]);
-
     const json_t *array = schema->path[schema->depth - 1]; 
     unsigned *index = &schema->item[schema->depth - 1];
 
@@ -417,6 +440,9 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
         case KEYWORD_PROPERTY:
             return (parent != NULL) &&
                    (parent->keyword == KEYWORD_OBJECT);
+        case KEYWORD_OPTIONAL:
+            return (parent != NULL) &&
+                   (parent->keyword == KEYWORD_PROPERTY);
         case KEYWORD_MIN_ITEMS:
         case KEYWORD_MAX_ITEMS:
             return (parent != NULL) &&
@@ -531,6 +557,7 @@ static int code_set_action(code_t *code, unsigned keyword)
         case KEYWORD_MULTIPLE_OF:
             code->action = eval_multiple_of;
             return 1;
+        case KEYWORD_OPTIONAL:
         case KEYWORD_MIN_ITEMS:
         case KEYWORD_MAX_ITEMS:
             return 1;
@@ -568,17 +595,28 @@ static int push_symbol(const sexp_event_t *event)
     {
         return 0;
     }
-    if (keyword == KEYWORD_ARRAY)
+    switch (keyword)
     {
-        path->index++;
-        code->pair[0] = 0;
-        code->pair[1] = -1u;
-        code->action = eval_array_size;
-        code = frame_resize(frame);
-        if (code == NULL)
-        {
-            return 0;
-        }
+        case KEYWORD_ARRAY:
+            path->index++;
+            code->pair[0] = 0;
+            code->pair[1] = -1u;
+            code->action = eval_array_size;
+            code = frame_resize(frame);
+            if (code == NULL)
+            {
+                return 0;
+            }
+            break;
+        case KEYWORD_PROPERTY:
+            path->index++;
+            code->action = eval_optional;
+            code = frame_resize(frame);
+            if (code == NULL)
+            {
+                return 0;
+            }
+            break;
     }
     if (event->depth && keyword_is_type(keyword)) 
     {
@@ -614,6 +652,7 @@ static int push_symbol_end(const sexp_event_t *event)
             {
                 return 0;
             }
+            code->flags = frame->code[path->index].flags;
             code->action = eval_object_end;
             break;
         case KEYWORD_TUPLE:
@@ -633,6 +672,24 @@ static int push_symbol_end(const sexp_event_t *event)
             code->action = eval_array_end;
             code->size = frame->size - path->index - 2;
             frame->code[path->index].size = code->size;
+            break;
+        case KEYWORD_PROPERTY:
+            if (path->type == SEXP_UNDEFINED)
+            {
+                code = &frame->code[path[-1].index];
+                code->flags |= FLAG_ADDITIONAL_PROPERTIES;
+                frame->size -= 2;
+            }
+            else
+            {
+                code = &frame->code[path->index - 1];
+                code->size = frame->size - path->index;
+            }
+            break;
+        case KEYWORD_OPTIONAL:
+            code = &frame->code[path[-1].index - 1];
+            code->flags |= FLAG_OPTIONAL;
+            frame->size--;
             break;
         case KEYWORD_MIN_ITEMS:
             code = &frame->code[path->index];
