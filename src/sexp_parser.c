@@ -112,22 +112,15 @@ static int parse_symbol(sexp_event_t *event)
         {
             return 0;
         }
-        if (!parse(event))
-        {
-            return 0;
-        }
-        while (*event->iter != ')')
+        do
         {
             if (!parse(event))
             {
                 return 0;
             }
         }
+        while (*event->iter != ')');
         event->depth--;
-    }
-    if (*event->iter != ')')
-    {
-        return 0;
     }
     event->type = SEXP_SYMBOL_END;
     event->iter = skip_spaces(event->iter + 1);
