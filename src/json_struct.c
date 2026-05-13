@@ -15,8 +15,6 @@
 #include "json_private.h"
 #include "json_struct.h"
 
-#define JUMP 2
-
 #define KEYWORD(_)                          \
     _(KEYWORD_OBJECT,       "object")       \
     _(KEYWORD_TUPLE,        "tuple")        \
@@ -160,11 +158,11 @@ static int eval_array(const code_t *code, schema_t *schema)
     }
     if (code->size == 0)
     {
-        return JUMP;
+        return 2;
     }
     if (schema->node->size == 0)
     {
-        return (int)code->size + JUMP;
+        return (int)code->size + 2;
     }
     schema->path[schema->depth] = schema->node;
     schema->item[schema->depth] = 0;
@@ -592,7 +590,7 @@ static int push_symbol_end(const sexp_event_t *event)
                 return 0;
             }
             code->action = eval_array_end;
-            code->size = frame->size - path->index - JUMP;
+            code->size = frame->size - path->index - 2;
             frame->code[path->index].size = code->size;
             break;
     }
