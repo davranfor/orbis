@@ -25,6 +25,8 @@
     _(KEYWORD_BOOLEAN,      "boolean")      \
     _(KEYWORD_NULL,         "null")         \
     _(KEYWORD_PROPERTY,     "property")     \
+    _(KEYWORD_MIN_ITEMS,    "minItems")     \
+    _(KEYWORD_MAX_ITEMS,    "maxItems")     \
     _(KEYWORD_PATTERN,      "pattern")      \
     _(KEYWORD_FORMAT,       "format")       \
     _(KEYWORD_MASK,         "mask")         \
@@ -91,6 +93,7 @@ typedef struct code
         char *string;
         double number;
         struct { unsigned size; unsigned short type, flags; };
+        unsigned pair[2];
     };
 } code_t;
 
@@ -160,6 +163,14 @@ static int eval_array(const code_t *code, schema_t *schema)
     {
         return 2;
     }
+
+    const unsigned *pair = code[-1].pair;
+
+    if ((schema->node->size < pair[0]) ||
+        (schema->node->size > pair[1]))
+    {
+        return 0;
+    }
     if (schema->node->size == 0)
     {
         return (int)code->size + 2;
@@ -167,6 +178,15 @@ static int eval_array(const code_t *code, schema_t *schema)
     schema->path[schema->depth] = schema->node;
     schema->item[schema->depth] = 0;
     schema->depth++;
+    return 1;
+}
+
+static int eval_array_size(const code_t *code, schema_t *schema)
+{
+    printf("minItems: %u\n", code->pair[0]);
+    printf("maxItems: %u\n", code->pair[1]);
+
+    (void)schema;
     return 1;
 }
 
@@ -397,6 +417,10 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
         case KEYWORD_PROPERTY:
             return (parent != NULL) &&
                    (parent->keyword == KEYWORD_OBJECT);
+        case KEYWORD_MIN_ITEMS:
+        case KEYWORD_MAX_ITEMS:
+            return (parent != NULL) &&
+                   (parent->keyword == KEYWORD_ARRAY);
         case KEYWORD_PATTERN:
         case KEYWORD_FORMAT:
         case KEYWORD_MASK:
@@ -427,14 +451,16 @@ static int expression_is_valid(const sexp_event_t *event)
             return path->type != SEXP_UNDEFINED
                     ? path->type == SEXP_STRING
                     : path->size == 0;
-        case KEYWORD_PATTERN:
-        case KEYWORD_FORMAT:
-        case KEYWORD_MASK:
-            return path->type == SEXP_STRING;
+        case KEYWORD_MIN_ITEMS:
+        case KEYWORD_MAX_ITEMS:
         case KEYWORD_MIN_LENGTH:
         case KEYWORD_MAX_LENGTH:
             return (path->type == SEXP_INTEGER) &&
                    (frame->code[path->index].number >= 0);
+        case KEYWORD_PATTERN:
+        case KEYWORD_FORMAT:
+        case KEYWORD_MASK:
+            return path->type == SEXP_STRING;
         case KEYWORD_MIN:
         case KEYWORD_MAX:
             return path[-1].keyword == KEYWORD_INTEGER
@@ -505,6 +531,9 @@ static int code_set_action(code_t *code, unsigned keyword)
         case KEYWORD_MULTIPLE_OF:
             code->action = eval_multiple_of;
             return 1;
+        case KEYWORD_MIN_ITEMS:
+        case KEYWORD_MAX_ITEMS:
+            return 1;
         default:
             return 0;
     }
@@ -538,6 +567,18 @@ static int push_symbol(const sexp_event_t *event)
     if (code == NULL)
     {
         return 0;
+    }
+    if (keyword == KEYWORD_ARRAY)
+    {
+        path->index++;
+        code->action = eval_array_size;
+        code->pair[0] = 0;
+        code->pair[1] = -1u;
+        code = frame_resize(frame);
+        if (code == NULL)
+        {
+            return 0;
+        }
     }
     if (event->depth && keyword_is_type(keyword)) 
     {
@@ -592,6 +633,16 @@ static int push_symbol_end(const sexp_event_t *event)
             code->action = eval_array_end;
             code->size = frame->size - path->index - 2;
             frame->code[path->index].size = code->size;
+            break;
+        case KEYWORD_MIN_ITEMS:
+            code = &frame->code[path->index];
+            frame->code[path[-1].index - 1].pair[0] = (unsigned)code->number;
+            frame->size--;
+            break;
+        case KEYWORD_MAX_ITEMS:
+            code = &frame->code[path->index];
+            frame->code[path[-1].index - 1].pair[1] = (unsigned)code->number;
+            frame->size--;
             break;
     }
     if (event->depth == 0)
