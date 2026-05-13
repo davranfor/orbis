@@ -280,7 +280,6 @@ static int eval_property(const code_t *code, schema_t *schema)
             return 1;
         }
     }
-
     return code[-1].flags & FLAG_OPTIONAL ? (int)code[-1].size : 0;
 }
 
