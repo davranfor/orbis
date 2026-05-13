@@ -15,6 +15,16 @@
 
 static int parse(sexp_event_t *);
 
+static int is_boundary(int c)
+{
+    return (c == ')') || is_space(c);
+}
+
+static int token_match(const char *str1, const char *str2, size_t length)
+{
+    return !strncmp(str1, str2, length) && is_boundary(str1[length]);
+}
+
 static char *skip_spaces(char *str)
 {
     while (is_space(*str))
@@ -52,7 +62,7 @@ static char *decode_string(sexp_event_t *event)
 
     char *result = NULL;
 
-    if (*str == '\"')
+    if ((*str == '"') && is_boundary(str[1]))
     {
         *ptr = '\0';
         result = event->iter;
@@ -74,6 +84,10 @@ static int parse_keyword(sexp_event_t *event)
     while (is_alnum(*str))
     {
         *ptr++ = *str++;
+    }
+    if (!is_boundary(*str))
+    {
+        return 0;
     }
     *ptr = '\0';
     event->iter = skip_spaces(str);
@@ -139,14 +153,15 @@ static int parse_number(sexp_event_t *event)
 
     double number = strtod(event->iter, &end);
 
-    if ((errno == ERANGE) || isnan(number) || isinf(number))
+    if ((errno == ERANGE) || isnan(number) || isinf(number) || !is_boundary(*end))
     {
         return 0;
     }
     event->number = number;
     // Here, we classify nodes as either 'integer' or 'real'.
     // Safe integers are numbers within the range of -2^52 to +2^52 (inclusive)
-    if ((event->iter + strspn(event->iter, "-0123456789") >= end) && IS_SAFE_INTEGER(number))
+    if ((event->iter + strspn(event->iter, "-0123456789") >= end) &&
+        IS_SAFE_INTEGER(number))
     {
         event->type = SEXP_INTEGER;
     }
@@ -160,7 +175,7 @@ static int parse_number(sexp_event_t *event)
 
 static int parse_true(sexp_event_t *event)
 {
-    if (strncmp(event->iter, "true", 4))
+    if (!token_match(event->iter, "true", 4))
     {
         return 0;
     }
@@ -171,7 +186,7 @@ static int parse_true(sexp_event_t *event)
 
 static int parse_false(sexp_event_t *event)
 {
-    if (strncmp(event->iter, "false", 5))
+    if (!token_match(event->iter, "false", 5))
     {
         return 0;
     }
@@ -182,7 +197,7 @@ static int parse_false(sexp_event_t *event)
 
 static int parse_null(sexp_event_t *event)
 {
-    if (strncmp(event->iter, "null", 4))
+    if (!token_match(event->iter, "null", 4))
     {
         return 0;
     }
