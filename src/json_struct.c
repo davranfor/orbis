@@ -95,7 +95,7 @@ typedef struct code
     {
         char *string;
         double number;
-        struct { unsigned size; unsigned short type, flags; };
+        struct { unsigned jump; unsigned short type, flags; };
         unsigned pair[2];
     };
 } code_t;
@@ -184,24 +184,17 @@ static int eval_array(const code_t *code, schema_t *schema)
     {
         return 0;
     }
-    if (code->size == 0)
+    if (code->jump == 0)
     {
         return 2;
     }
     if (schema->node->size == 0)
     {
-        return (int)code->size + 2;
+        return (int)code->jump + 2;
     }
     schema->path[schema->depth] = schema->node;
     schema->item[schema->depth] = 0;
     schema->depth++;
-    return 1;
-}
-
-static int eval_array_size(const code_t *code, schema_t *schema)
-{
-    (void)code;
-    (void)schema;
     return 1;
 }
 
@@ -214,7 +207,7 @@ static int eval_array_end(const code_t *code, schema_t *schema)
         schema->node = schema->path[--schema->depth];
         return 1;
     }
-    return -(int)code->size;
+    return -(int)code->jump;
 }
 
 static int eval_string(const code_t *code, schema_t *schema)
@@ -257,13 +250,6 @@ static int eval_null(const code_t *code, schema_t *schema)
     return schema->node->type == JSON_NULL;
 }
 
-static int eval_optional(const code_t *code, schema_t *schema)
-{
-    (void)code;
-    (void)schema;
-    return 1;
-}
-
 static int eval_property(const code_t *code, schema_t *schema)
 {
     printf("property: %s\n", code->string);
@@ -280,7 +266,7 @@ static int eval_property(const code_t *code, schema_t *schema)
             return 1;
         }
     }
-    return code[-1].flags & FLAG_OPTIONAL ? (int)code[-1].size : 0;
+    return code[-1].flags & FLAG_OPTIONAL ? (int)code[-1].jump : 0;
 }
 
 static int eval_item(const code_t *code, schema_t *schema)
@@ -369,6 +355,13 @@ static int eval_multiple_of(const code_t *code, schema_t *schema)
     double quotient = schema->node->number / code->number;
 
     return fabs(quotient - round(quotient)) < 1e-9;
+}
+
+static int eval_meta(const code_t *code, schema_t *schema)
+{
+    (void)code;
+    (void)schema;
+    return 1;
 }
 
 /******************************************************************************
@@ -600,7 +593,7 @@ static int push_symbol(const sexp_event_t *event)
             path->index++;
             code->pair[0] = 0;
             code->pair[1] = -1u;
-            code->action = eval_array_size;
+            code->action = eval_meta;
             code = frame_resize(frame);
             if (code == NULL)
             {
@@ -609,7 +602,7 @@ static int push_symbol(const sexp_event_t *event)
             break;
         case KEYWORD_PROPERTY:
             path->index++;
-            code->action = eval_optional;
+            code->action = eval_meta;
             code = frame_resize(frame);
             if (code == NULL)
             {
@@ -669,8 +662,8 @@ static int push_symbol_end(const sexp_event_t *event)
                 return 0;
             }
             code->action = eval_array_end;
-            code->size = frame->size - path->index - 2;
-            frame->code[path->index].size = code->size;
+            code->jump = frame->size - path->index - 2;
+            frame->code[path->index].jump = code->jump;
             break;
         case KEYWORD_PROPERTY:
             if (path->type == SEXP_UNDEFINED)
@@ -682,7 +675,7 @@ static int push_symbol_end(const sexp_event_t *event)
             else
             {
                 code = &frame->code[path->index - 1];
-                code->size = frame->size - path->index;
+                code->jump = frame->size - path->index;
             }
             break;
         case KEYWORD_OPTIONAL:
