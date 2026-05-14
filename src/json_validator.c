@@ -412,9 +412,9 @@ static int eval_meta(const code_t *code, schema_t *schema)
 ******************************************************************************/
 
 #ifdef DEBUG
-    #define log(...) fprintf(stderr, __VA_ARGS__)
+#define log(...) fprintf(stderr, __VA_ARGS__)
 #else
-    #define log(...) ((void)0)
+#define log(...) ((void)0)
 #endif
 
 typedef struct { unsigned keyword, index, type, size; } path_t;
