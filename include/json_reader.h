@@ -30,6 +30,8 @@
 #define json_size_t(node) ((size_t)json_number(node))
 #define json_float(node) ((float)json_number(node))
 #define json_double(node) json_number(node)
+#define json_child(node) json_head(node)
+#define json_unique_items(node) json_unique_children(node)
 
 typedef int (*json_walk_callback)(const json_t *, size_t, void *);
 

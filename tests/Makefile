@@ -9,7 +9,7 @@ READER  = $(WRITER) $(SRCDIR)/json_reader.c $(SRCDIR)/clib_match.c $(SRCDIR)/cli
 POINTER = $(READER) $(SRCDIR)/json_pointer.c
 BUFFER  = $(WRITER) $(SRCDIR)/clib_buffer.c $(SRCDIR)/json_buffer.c
 SORTER  = $(WRITER) $(SRCDIR)/json_sorter.c
-STRUCT  = $(WRITER) $(SRCDIR)/sexp_parser.c $(SRCDIR)/clib_string.c $(SRCDIR)/clib_regex.c $(SRCDIR)/clib_match.c $(SRCDIR)/clib_date.c $(SRCDIR)/json_struct.c
+STRUCT  = $(READER) $(SRCDIR)/sexp_parser.c $(SRCDIR)/clib_string.c $(SRCDIR)/json_struct.c
 
 TESTS = test_parser test_writer test_reader test_pointer test_buffer test_sorter test_struct
 

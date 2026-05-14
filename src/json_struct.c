@@ -28,7 +28,7 @@
     _(KEYWORD_PROPERTY,     "property")     \
     _(KEYWORD_OPTIONAL,     "optional")     \
     _(KEYWORD_NULLABLE,     "nullable")     \
-    _(KEYWORD_UNIQUE,       "unique")       \
+    _(KEYWORD_UNIQUE_ITEMS, "uniqueItems")  \
     _(KEYWORD_MIN_ITEMS,    "minItems")     \
     _(KEYWORD_MAX_ITEMS,    "maxItems")     \
     _(KEYWORD_CONST,        "const")        \
@@ -84,7 +84,7 @@ enum
 {
     FLAG_OPTIONAL = 1,
     FLAG_NULLABLE = 2,
-    FLAG_UNIQUE = 4,
+    FLAG_UNIQUE_ITEMS = 4,
     FLAG_ADDITIONAL_PROPERTIES = 8
 };
 
@@ -171,14 +171,21 @@ static int eval_tuple(const code_t *code, schema_t *schema)
 static int eval_tuple_end(const code_t *code, schema_t *schema)
 {
     (void)code;
+
+    const json_t *array = schema->path[schema->depth - 1];
+
+    if (array->size != schema->item[schema->depth - 1])
+    {
+        return 0;
+    }
     schema->node = schema->path[--schema->depth];
     return 1;
 }
 
 static int eval_array(const code_t *code, schema_t *schema)
 {
-    printf("array\nunique: %s\n",
-        code->flags & FLAG_UNIQUE ? "true" : "false");
+    printf("array\nuniqueItems: %s\n",
+        code->flags & FLAG_UNIQUE_ITEMS ? "true" : "false");
 
     if (schema->node->type != JSON_ARRAY)
     {
@@ -190,11 +197,13 @@ static int eval_array(const code_t *code, schema_t *schema)
     printf("minItems: %u\n", pair[0]);
     printf("maxItems: %u\n", pair[1]);
 
-    if ((schema->node->size < pair[0]) || (schema->node->size > pair[1]))
+    if ((schema->node->size < pair[0]) ||
+        (schema->node->size > pair[1]))
     {
         return 0;
     }
-    if ((code->flags & FLAG_UNIQUE) && !json_unique_children(schema->node))
+    if ((code->flags & FLAG_UNIQUE_ITEMS) &&
+        !json_unique_items(schema->node))
     {
         return 0;
     }
@@ -325,17 +334,11 @@ static int eval_const(const code_t *code, schema_t *schema)
     if (schema->node->type == JSON_STRING)
     {
         printf("const: %s\n", code->string);
-    }
-    else
-    {
-        printf("const: %g\n", code->number);
-    }
-    if (schema->node->type == JSON_STRING)
-    {
         return !strcmp(schema->node->string, code->string);
     }
     else
     {
+        printf("const: %g\n", code->number);
         return schema->node->number == code->number;
     }
 }
@@ -476,7 +479,7 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
         case KEYWORD_NULLABLE:
             return (parent != NULL) &&
                    (parent->keyword == KEYWORD_PROPERTY);
-        case KEYWORD_UNIQUE:
+        case KEYWORD_UNIQUE_ITEMS:
         case KEYWORD_MIN_ITEMS:
         case KEYWORD_MAX_ITEMS:
             return (parent != NULL) &&
@@ -608,7 +611,7 @@ static int code_set_action(code_t *code, unsigned keyword)
             return 1;
         case KEYWORD_OPTIONAL:
         case KEYWORD_NULLABLE:
-        case KEYWORD_UNIQUE:
+        case KEYWORD_UNIQUE_ITEMS:
         case KEYWORD_MIN_ITEMS:
         case KEYWORD_MAX_ITEMS:
             return 1;
@@ -747,9 +750,9 @@ static int push_symbol_end(const sexp_event_t *event)
             code->flags |= FLAG_NULLABLE;
             frame->size--;
             break;
-        case KEYWORD_UNIQUE:
+        case KEYWORD_UNIQUE_ITEMS:
             code = &frame->code[path[-1].index];
-            code->flags |= FLAG_UNIQUE;
+            code->flags |= FLAG_UNIQUE_ITEMS;
             frame->size--;
             break;
         case KEYWORD_MIN_ITEMS:

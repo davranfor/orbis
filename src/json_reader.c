@@ -186,16 +186,6 @@ unsigned json_index(const json_t *node, const char *key)
 }
 
 /* First node of an iterable */
-json_t *json_child(const json_t *node)
-{
-    if ((node != NULL) && (node->size > 0))
-    {
-        return node->child;
-    }
-    return NULL;
-}
-
-/* First node of an iterable */
 json_t *json_head(const json_t *node)
 {
     if ((node != NULL) && (node->size > 0))

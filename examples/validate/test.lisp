@@ -9,7 +9,7 @@
             (property "postalCode" (string (pattern "^[0-9]{5}$")))
         )
     )
-    (property "items" (array (unique) (integer) (minItems 3) (maxItems 3)))
+    (property "items" (array (integer) (minItems 3) (maxItems 3) (uniqueItems)))
     (property "tuple" (tuple (string) (string) (string)))
     (property "end" (integer) (nullable))
     (property)

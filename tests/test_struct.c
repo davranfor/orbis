@@ -104,6 +104,27 @@ static void test_compile_invalid(void)
 
     char bad3[] = "(object";  /* unbalanced */
     TEST(json_compile(bad3) == NULL);
+
+    char bad4[] = "(optional)";             /* modifier at root */
+    TEST(json_compile(bad4) == NULL);
+
+    char bad5[] = "(nullable)";             /* modifier at root */
+    TEST(json_compile(bad5) == NULL);
+
+    char bad6[] = "(string (min 1))";       /* wrong constraint for type */
+    TEST(json_compile(bad6) == NULL);
+
+    char bad7[] = "(string (minLength -1))"; /* negative length */
+    TEST(json_compile(bad7) == NULL);
+
+    char bad8[] = "(integer (multipleOf 0))"; /* zero divisor */
+    TEST(json_compile(bad8) == NULL);
+
+    char bad9[] = "(array (string) (integer))"; /* two element types */
+    TEST(json_compile(bad9) == NULL);
+
+    char bad10[] = "(object (property (string)))"; /* type before name */
+    TEST(json_compile(bad10) == NULL);
 }
 
 /* Primitive type validators */
@@ -175,8 +196,10 @@ static void test_tuple(void)
     TEST(code != NULL);
     if (!code) return;
 
-    TEST(validate_str("[\"x\",1]", code) == 1);
-    TEST(validate_str("[1,\"x\"]", code) == 0);   /* swapped types */
+    TEST(validate_str("[\"x\",1]",      code) == 1); /* correct order */
+    TEST(validate_str("[1,\"x\"]",      code) == 0); /* swapped types */
+    TEST(validate_str("[\"x\"]",        code) == 0); /* too few */
+    TEST(validate_str("[\"x\",1,true]", code) == 0); /* extra items now rejected */
 
     free(code);
 }
@@ -193,6 +216,113 @@ static void test_string_constraints(void)
     TEST(validate_str("\"abcd\"",  code) == 1);
     TEST(validate_str("\"a\"",     code) == 0);
     TEST(validate_str("\"abcde\"", code) == 0);
+
+    free(code);
+}
+
+/* Nullable properties */
+static void test_nullable(void)
+{
+    /* (nullable) alone: null passes, non-null string passes type check */
+    {
+        char schema[] = "(object (property \"x\" (nullable) (string)))";
+        void *code = json_compile(schema);
+        TEST(code != NULL);
+        if (code)
+        {
+            TEST(validate_str("{\"x\":null}",    code) == 1); /* null: skip type, pass */
+            TEST(validate_str("{\"x\":\"hi\"}",  code) == 1); /* string: pass */
+            TEST(validate_str("{\"x\":42}",      code) == 0); /* wrong type */
+            TEST(validate_str("{}",              code) == 0); /* missing: still required */
+            free(code);
+        }
+    }
+
+    /* (optional) + (nullable): absent or null both pass */
+    {
+        char schema[] = "(object (property \"x\" (optional) (nullable) (string)))";
+        void *code = json_compile(schema);
+        TEST(code != NULL);
+        if (code)
+        {
+            TEST(validate_str("{\"x\":\"hi\"}",  code) == 1); /* string: pass */
+            TEST(validate_str("{\"x\":null}",    code) == 1); /* null: pass */
+            TEST(validate_str("{}",              code) == 1); /* absent: pass */
+            TEST(validate_str("{\"x\":42}",      code) == 0); /* wrong type */
+            free(code);
+        }
+    }
+
+    /* nullable jump skips constraints: null bypasses minLength */
+    {
+        char schema[] = "(object (property \"x\" (nullable) (string (minLength 5))))";
+        void *code = json_compile(schema);
+        TEST(code != NULL);
+        if (code)
+        {
+            TEST(validate_str("{\"x\":null}",     code) == 1); /* null: jump over minLength */
+            TEST(validate_str("{\"x\":\"hello\"}", code) == 1); /* long enough */
+            TEST(validate_str("{\"x\":\"hi\"}",   code) == 0); /* too short */
+            free(code);
+        }
+    }
+}
+
+/* (const): exact value match */
+static void test_const(void)
+{
+    /* string const */
+    {
+        char schema[] = "(string (const \"active\"))";
+        void *code = json_compile(schema);
+        TEST(code != NULL);
+        if (code)
+        {
+            TEST(validate_str("\"active\"",  code) == 1);
+            TEST(validate_str("\"pending\"", code) == 0);
+            free(code);
+        }
+    }
+
+    /* integer const */
+    {
+        char schema[] = "(integer (const 42))";
+        void *code = json_compile(schema);
+        TEST(code != NULL);
+        if (code)
+        {
+            TEST(validate_str("42", code) == 1);
+            TEST(validate_str("43", code) == 0);
+            free(code);
+        }
+    }
+
+    /* const inside object property */
+    {
+        char schema[] = "(object (property \"status\" (string (const \"ok\"))))";
+        void *code = json_compile(schema);
+        TEST(code != NULL);
+        if (code)
+        {
+            TEST(validate_str("{\"status\":\"ok\"}",  code) == 1);
+            TEST(validate_str("{\"status\":\"err\"}", code) == 0);
+            free(code);
+        }
+    }
+}
+
+/* (uniqueItems): array elements must be distinct */
+static void test_unique_items(void)
+{
+    char schema[] = "(array (uniqueItems))";
+    void *code = json_compile(schema);
+    TEST(code != NULL);
+    if (!code) return;
+
+    TEST(validate_str("[]",        code) == 1); /* empty: trivially unique */
+    TEST(validate_str("[1,2,3]",   code) == 1); /* all distinct */
+    TEST(validate_str("[1,1,2]",   code) == 0); /* duplicate */
+    TEST(validate_str("[1,\"1\"]", code) == 1); /* different types: distinct */
 
     free(code);
 }
@@ -223,6 +353,9 @@ int main(void)
     test_compile_invalid();
     test_primitives();
     test_object();
+    test_nullable();
+    test_const();
+    test_unique_items();
     test_array();
     test_tuple();
     test_string_constraints();

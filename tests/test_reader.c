@@ -102,7 +102,7 @@ static void test_null_safety(void)
 
     TEST(json_is_unique(NULL, j_int) == 0);
     TEST(json_is_unique(arr, NULL) == 0);
-    TEST(json_unique_children(NULL) == 0);
+    TEST(json_unique_items(NULL) == 0);
 
     TEST(json_walk(NULL, NULL, NULL) == 0);
 }
@@ -426,14 +426,14 @@ static void test_unique(void)
     json_t *dup = json_decode(sdup);
 
     /* [10,20,30]: all unique */
-    TEST(json_unique_children(arr));
+    TEST(json_unique_items(arr));
     TEST(json_is_unique(arr, json_at(arr, 0)));
     TEST(json_is_unique(arr, json_at(arr, 2)));
 
     if (dup)
     {
         /* [1,1,2]: first 1 is not unique, 2 is */
-        TEST(!json_unique_children(dup));
+        TEST(!json_unique_items(dup));
         TEST(!json_is_unique(dup, json_at(dup, 0)));
         TEST(!json_is_unique(dup, json_at(dup, 1)));
         TEST(json_is_unique(dup, json_at(dup, 2)));
