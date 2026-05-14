@@ -1,6 +1,6 @@
 (object
     (property "name" (string (minLength 1) (maxLength 50)))
-    (property "age" (integer (min 0) (max 120)))
+    (property "age" (integer (min 0) (max 120) (const 42)))
     (property "address"
         (object
             (property "street" (string))

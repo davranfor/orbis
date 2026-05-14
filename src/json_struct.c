@@ -29,6 +29,7 @@
     _(KEYWORD_NULLABLE,     "nullable")     \
     _(KEYWORD_MIN_ITEMS,    "minItems")     \
     _(KEYWORD_MAX_ITEMS,    "maxItems")     \
+    _(KEYWORD_CONST,        "const")        \
     _(KEYWORD_PATTERN,      "pattern")      \
     _(KEYWORD_FORMAT,       "format")       \
     _(KEYWORD_MASK,         "mask")         \
@@ -307,6 +308,26 @@ static int eval_item(const code_t *code, schema_t *schema)
     return 0;
 }
 
+static int eval_const(const code_t *code, schema_t *schema)
+{
+    if (schema->node->type == JSON_STRING)
+    {
+        printf("const: %s\n", code->string);
+    }
+    else
+    {
+        printf("const: %g\n", code->number);
+    }
+    if (schema->node->type == JSON_STRING)
+    {
+        return !strcmp(schema->node->string, code->string);
+    }
+    else
+    {
+        return schema->node->number == code->number;
+    }
+}
+
 static int eval_pattern(const code_t *code, schema_t *schema)
 {
     printf("pattern: %s\n", code->string);
@@ -447,6 +468,12 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
         case KEYWORD_MAX_ITEMS:
             return (parent != NULL) &&
                    (parent->keyword == KEYWORD_ARRAY);
+        case KEYWORD_CONST:
+            return parent != NULL
+                ? (parent->keyword == KEYWORD_STRING)  ||
+                  (parent->keyword == KEYWORD_INTEGER) ||
+                  (parent->keyword == KEYWORD_NUMBER)
+                : 0;
         case KEYWORD_PATTERN:
         case KEYWORD_FORMAT:
         case KEYWORD_MASK:
@@ -483,6 +510,12 @@ static int expression_is_valid(const sexp_event_t *event)
         case KEYWORD_MAX_LENGTH:
             return (path->type == SEXP_INTEGER) &&
                    (frame->code[path->index].number >= 0);
+        case KEYWORD_CONST:
+            return path[-1].keyword == KEYWORD_STRING
+                    ? path->type == SEXP_STRING
+                    : path[-1].keyword == KEYWORD_INTEGER
+                        ? path->type == SEXP_INTEGER
+                        : (path->type & SEXP_NUMBER) != 0;
         case KEYWORD_PATTERN:
         case KEYWORD_FORMAT:
         case KEYWORD_MASK:
@@ -532,6 +565,9 @@ static int code_set_action(code_t *code, unsigned keyword)
             return 1;
         case KEYWORD_PROPERTY:
             code->action = eval_property;
+            return 1;
+        case KEYWORD_CONST:
+            code->action = eval_const;
             return 1;
         case KEYWORD_PATTERN:
             code->action = eval_pattern;
