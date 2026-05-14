@@ -190,8 +190,11 @@ static int eval_array(const code_t *code, schema_t *schema)
     printf("minItems: %u\n", pair[0]);
     printf("maxItems: %u\n", pair[1]);
 
-    if ((schema->node->size < pair[0]) ||
-        (schema->node->size > pair[1]))
+    if ((schema->node->size < pair[0]) || (schema->node->size > pair[1]))
+    {
+        return 0;
+    }
+    if ((code->flags & FLAG_UNIQUE) && !json_unique_children(schema->node))
     {
         return 0;
     }
@@ -202,11 +205,6 @@ static int eval_array(const code_t *code, schema_t *schema)
     if (schema->node->size == 0)
     {
         return (int)code->jump + 2;
-    }
-    if ((code->flags & FLAG_UNIQUE) &&
-        !json_unique_children(schema->node))
-    {
-        return 0;
     }
     schema->path[schema->depth] = schema->node;
     schema->item[schema->depth] = 0;
