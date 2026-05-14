@@ -14,7 +14,7 @@
 #include "sexp_parser.h"
 #include "json_private.h"
 #include "json_reader.h"
-#include "json_struct.h"
+#include "json_validator.h"
 
 #define KEYWORD(_)                          \
     _(KEYWORD_OBJECT,       "object")       \

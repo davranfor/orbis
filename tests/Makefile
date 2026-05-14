@@ -9,9 +9,9 @@ READER  = $(WRITER) $(SRCDIR)/json_reader.c $(SRCDIR)/clib_match.c $(SRCDIR)/cli
 POINTER = $(READER) $(SRCDIR)/json_pointer.c
 BUFFER  = $(WRITER) $(SRCDIR)/clib_buffer.c $(SRCDIR)/json_buffer.c
 SORTER  = $(WRITER) $(SRCDIR)/json_sorter.c
-STRUCT  = $(READER) $(SRCDIR)/sexp_parser.c $(SRCDIR)/clib_string.c $(SRCDIR)/json_struct.c
+VALIDATOR = $(READER) $(SRCDIR)/sexp_parser.c $(SRCDIR)/clib_string.c $(SRCDIR)/json_validator.c
 
-TESTS = test_parser test_writer test_reader test_pointer test_buffer test_sorter test_struct
+TESTS = test_parser test_writer test_reader test_pointer test_buffer test_sorter test_validator
 
 .PHONY: all run clean
 
@@ -35,7 +35,7 @@ test_buffer: test_buffer.c $(BUFFER)
 test_sorter: test_sorter.c $(SORTER)
 	$(CC) $(CFLAGS) $^ $(LDLIBS) -o $@
 
-test_struct: test_struct.c $(STRUCT)
+test_validator: test_validator.c $(VALIDATOR)
 	$(CC) $(CFLAGS) $^ $(LDLIBS) -o $@
 
 run: all
@@ -47,4 +47,4 @@ run: all
 	exit $$failed
 
 clean:
-	rm -f $(TESTS)
+	rm -f $(TESTS) test_struct

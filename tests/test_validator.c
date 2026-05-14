@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include "test.h"
 #include "json_writer.h"
-#include "json_struct.h"
+#include "json_validator.h"
 
 /*
  * NOTE: json_struct.c emits unconditional printf() trace lines on every

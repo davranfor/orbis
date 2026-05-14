@@ -4,8 +4,8 @@
  *  \copyright GNU Public License.
  */
 
-#ifndef JSON_STRUCT_H
-#define JSON_STRUCT_H
+#ifndef JSON_VALIDATOR_H
+#define JSON_VALIDATOR_H
 
 #include "json_header.h"
 
