@@ -13,6 +13,7 @@
 #include "clib_match.h"
 #include "sexp_parser.h"
 #include "json_private.h"
+#include "json_reader.h"
 #include "json_struct.h"
 
 #define KEYWORD(_)                          \
@@ -27,6 +28,7 @@
     _(KEYWORD_PROPERTY,     "property")     \
     _(KEYWORD_OPTIONAL,     "optional")     \
     _(KEYWORD_NULLABLE,     "nullable")     \
+    _(KEYWORD_UNIQUE,       "unique")       \
     _(KEYWORD_MIN_ITEMS,    "minItems")     \
     _(KEYWORD_MAX_ITEMS,    "maxItems")     \
     _(KEYWORD_CONST,        "const")        \
@@ -78,7 +80,13 @@ static int keyword_is_type(unsigned keyword)
  EVAL CODE
 ******************************************************************************/
 
-enum { FLAG_OPTIONAL = 1, FLAG_NULLABLE = 2, FLAG_ADDITIONAL_PROPERTIES = 4 };
+enum
+{
+    FLAG_OPTIONAL = 1,
+    FLAG_NULLABLE = 2,
+    FLAG_UNIQUE = 4,
+    FLAG_ADDITIONAL_PROPERTIES = 8
+};
 
 typedef struct
 {
@@ -169,7 +177,8 @@ static int eval_tuple_end(const code_t *code, schema_t *schema)
 
 static int eval_array(const code_t *code, schema_t *schema)
 {
-    printf("array\n");
+    printf("array\nunique: %s\n",
+        code->flags & FLAG_UNIQUE ? "true" : "false");
 
     if (schema->node->type != JSON_ARRAY)
     {
@@ -193,6 +202,11 @@ static int eval_array(const code_t *code, schema_t *schema)
     if (schema->node->size == 0)
     {
         return (int)code->jump + 2;
+    }
+    if ((code->flags & FLAG_UNIQUE) &&
+        !json_unique_children(schema->node))
+    {
+        return 0;
     }
     schema->path[schema->depth] = schema->node;
     schema->item[schema->depth] = 0;
@@ -464,6 +478,7 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
         case KEYWORD_NULLABLE:
             return (parent != NULL) &&
                    (parent->keyword == KEYWORD_PROPERTY);
+        case KEYWORD_UNIQUE:
         case KEYWORD_MIN_ITEMS:
         case KEYWORD_MAX_ITEMS:
             return (parent != NULL) &&
@@ -595,6 +610,7 @@ static int code_set_action(code_t *code, unsigned keyword)
             return 1;
         case KEYWORD_OPTIONAL:
         case KEYWORD_NULLABLE:
+        case KEYWORD_UNIQUE:
         case KEYWORD_MIN_ITEMS:
         case KEYWORD_MAX_ITEMS:
             return 1;
@@ -731,6 +747,11 @@ static int push_symbol_end(const sexp_event_t *event)
         case KEYWORD_NULLABLE:
             code = &frame->code[path[-1].index - 1];
             code->flags |= FLAG_NULLABLE;
+            frame->size--;
+            break;
+        case KEYWORD_UNIQUE:
+            code = &frame->code[path[-1].index];
+            code->flags |= FLAG_UNIQUE;
             frame->size--;
             break;
         case KEYWORD_MIN_ITEMS:
