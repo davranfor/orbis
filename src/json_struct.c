@@ -26,6 +26,7 @@
     _(KEYWORD_NULL,         "null")         \
     _(KEYWORD_PROPERTY,     "property")     \
     _(KEYWORD_OPTIONAL,     "optional")     \
+    _(KEYWORD_NULLABLE,     "nullable")     \
     _(KEYWORD_MIN_ITEMS,    "minItems")     \
     _(KEYWORD_MAX_ITEMS,    "maxItems")     \
     _(KEYWORD_PATTERN,      "pattern")      \
@@ -76,7 +77,7 @@ static int keyword_is_type(unsigned keyword)
  EVAL CODE
 ******************************************************************************/
 
-enum { FLAG_OPTIONAL = 1, FLAG_ADDITIONAL_PROPERTIES = 2 };
+enum { FLAG_OPTIONAL = 1, FLAG_NULLABLE = 2, FLAG_ADDITIONAL_PROPERTIES = 4 };
 
 typedef struct
 {
@@ -254,6 +255,7 @@ static int eval_property(const code_t *code, schema_t *schema)
 {
     printf("property: %s\n", code->string);
     printf("optional: %s\n", code[-1].flags & FLAG_OPTIONAL ? "true" : "false");
+    printf("nullable: %s\n", code[-1].flags & FLAG_NULLABLE ? "true" : "false");
 
     const json_t *object = schema->path[schema->depth - 1]; 
 
@@ -263,6 +265,11 @@ static int eval_property(const code_t *code, schema_t *schema)
         {
             schema->node = &object->child[index];
             schema->item[schema->depth - 1]++;
+            if ((code[-1].flags & FLAG_NULLABLE) &&
+                (schema->node->type == JSON_NULL))
+            {
+                return (int)code[-1].jump;
+            }
             return 1;
         }
     }
@@ -433,6 +440,7 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
             return (parent != NULL) &&
                    (parent->keyword == KEYWORD_OBJECT);
         case KEYWORD_OPTIONAL:
+        case KEYWORD_NULLABLE:
             return (parent != NULL) &&
                    (parent->keyword == KEYWORD_PROPERTY);
         case KEYWORD_MIN_ITEMS:
@@ -550,6 +558,7 @@ static int code_set_action(code_t *code, unsigned keyword)
             code->action = eval_multiple_of;
             return 1;
         case KEYWORD_OPTIONAL:
+        case KEYWORD_NULLABLE:
         case KEYWORD_MIN_ITEMS:
         case KEYWORD_MAX_ITEMS:
             return 1;
@@ -681,6 +690,11 @@ static int push_symbol_end(const sexp_event_t *event)
         case KEYWORD_OPTIONAL:
             code = &frame->code[path[-1].index - 1];
             code->flags |= FLAG_OPTIONAL;
+            frame->size--;
+            break;
+        case KEYWORD_NULLABLE:
+            code = &frame->code[path[-1].index - 1];
+            code->flags |= FLAG_NULLABLE;
             frame->size--;
             break;
         case KEYWORD_MIN_ITEMS:

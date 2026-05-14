@@ -11,7 +11,7 @@
     )
     (property "items" (array (integer) (minItems 3) (maxItems 3)))
     (property "tuple" (tuple (string) (string) (string)))
-    (property "end" (null))
+    (property "end" (integer) (nullable))
     (property)
 )
 
