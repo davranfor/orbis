@@ -19,7 +19,7 @@ enum
     SEXP_TRUE = 16,
     SEXP_FALSE = 32,
     SEXP_NULL = 64,
-    SEXP_SYMBOL_END = 128,
+    SEXP_REDUCE = 128,
 };
 
 enum

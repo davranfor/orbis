@@ -71,7 +71,7 @@ static char *decode_string(sexp_event_t *event)
     return result;
 }
 
-static int parse_keyword(sexp_event_t *event)
+static int parse_symbol(sexp_event_t *event)
 {
     if (!is_alpha(*event->iter))
     {
@@ -94,11 +94,11 @@ static int parse_keyword(sexp_event_t *event)
     return 1;
 }
 
-static int parse_symbol(sexp_event_t *event)
+static int parse_expression(sexp_event_t *event)
 {
     event->type = SEXP_SYMBOL;
     event->iter = skip_spaces(event->iter + 1);
-    if (!parse_keyword(event))
+    if (!parse_symbol(event))
     {
         return 0;
     }
@@ -122,7 +122,7 @@ static int parse_symbol(sexp_event_t *event)
         while (*event->iter != ')');
         event->depth--;
     }
-    event->type = SEXP_SYMBOL_END;
+    event->type = SEXP_REDUCE;
     event->iter = skip_spaces(event->iter + 1);
     return event->callback(event);
 }
@@ -204,7 +204,7 @@ static int parse(sexp_event_t *event)
     switch (*event->iter)
     {
         case '(':
-            return parse_symbol(event);
+            return parse_expression(event);
         case '"':
             return parse_string(event);
         case '-':

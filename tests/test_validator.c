@@ -14,7 +14,7 @@
 #include "json_validator.h"
 
 /*
- * NOTE: json_struct.c emits unconditional printf() trace lines on every
+ * NOTE: json_validator.c emits unconditional printf() trace lines on every
  * evaluation step. We mute stdout during the tests so only the summary
  * (also stdout) remains visible.
  *

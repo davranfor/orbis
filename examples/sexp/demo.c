@@ -15,7 +15,7 @@ int print(const sexp_event_t *event)
         case SEXP_SYMBOL:
             printf("(%s\n", event->string);
             break;
-        case SEXP_SYMBOL_END:
+        case SEXP_REDUCE:
             printf(")\n");
             break;
         case SEXP_STRING:

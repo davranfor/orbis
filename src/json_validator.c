@@ -685,7 +685,7 @@ static int push_symbol(const sexp_event_t *event)
     return code_set_action(code, keyword);
 }
 
-static int push_symbol_end(const sexp_event_t *event)
+static int push_reduce(const sexp_event_t *event)
 {
     frame_t *frame = event->data;
     path_t *path = &frame->path[event->depth];
@@ -806,8 +806,8 @@ static int compile(const sexp_event_t *event)
     {
         case SEXP_SYMBOL:
             return push_symbol(event);
-        case SEXP_SYMBOL_END:
-            return push_symbol_end(event);
+        case SEXP_REDUCE:
+            return push_reduce(event);
         case SEXP_STRING:
         case SEXP_INTEGER:
         case SEXP_REAL:
