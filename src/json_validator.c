@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <math.h>
 #include "clib_string.h"
@@ -110,6 +111,47 @@ typedef struct code
     };
 } code_t;
 
+static int raise_error(schema_t *, const char *, ...)
+    __attribute__((format(printf, 2, 3)));
+
+static int raise_error(schema_t *schema, const char *fmt, ...)
+{
+    if (schema->callback == NULL)
+    {
+        return 0;
+    }
+
+    va_list args;
+
+    va_start(args, fmt);
+
+    char *str = string_vprint(fmt, args);
+
+    va_end(args);
+
+    const json_t node =
+    {
+        .child = (json_t [])
+        {
+            {
+                .key = "node",
+                .type = schema->node->key ? JSON_OBJECT : JSON_ARRAY,
+                .child = json_cast(schema->node),
+                .size = 1
+            },
+            {   .key = "rule",
+                .string = str,
+                .type = JSON_STRING
+            },
+        },
+        .type = JSON_OBJECT,
+        .size = 2
+    };
+
+    schema->callback(&node, schema->data);
+    return 0;
+}
+
 static int eval_code(const code_t *code, schema_t *schema)
 {
     for (int iter = 0; code->action != NULL; code += iter)
@@ -124,13 +166,10 @@ static int eval_code(const code_t *code, schema_t *schema)
 
 static int eval_object(const code_t *code, schema_t *schema)
 {
-    printf("object\nadditionalProperties = %s\n",
-        code->flags & FLAG_ADDITIONAL_PROPERTIES ? "true" : "false");
-
     (void)code;
     if (schema->node->type != JSON_OBJECT)
     {
-        return 0;
+        return raise_error(schema, "'type': 'object'");
     }
     schema->path[schema->depth] = schema->node;
     schema->item[schema->depth] = 0;
@@ -146,7 +185,7 @@ static int eval_object_end(const code_t *code, schema_t *schema)
 
         if (object->size != schema->item[schema->depth - 1])
         {
-            return 0;
+            return raise_error(schema, "'additionalProperties': false");
         }
     }   
     schema->node = schema->path[--schema->depth];
@@ -155,12 +194,10 @@ static int eval_object_end(const code_t *code, schema_t *schema)
 
 static int eval_tuple(const code_t *code, schema_t *schema)
 {
-    printf("tuple\n");
-
     (void)code;
     if (schema->node->type != JSON_ARRAY)
     {
-        return 0;
+        return raise_error(schema, "'type': 'array'");
     }
     schema->path[schema->depth] = schema->node;
     schema->item[schema->depth] = 0;
@@ -173,10 +210,11 @@ static int eval_tuple_end(const code_t *code, schema_t *schema)
     (void)code;
 
     const json_t *array = schema->path[schema->depth - 1];
+    unsigned index = schema->item[schema->depth - 1];
 
-    if (array->size != schema->item[schema->depth - 1])
+    if (array->size != index)
     {
-        return 0;
+        return raise_error(schema, "'maxItems': %u", index);
     }
     schema->node = schema->path[--schema->depth];
     return 1;
@@ -184,28 +222,25 @@ static int eval_tuple_end(const code_t *code, schema_t *schema)
 
 static int eval_array(const code_t *code, schema_t *schema)
 {
-    printf("array\nuniqueItems: %s\n",
-        code->flags & FLAG_UNIQUE_ITEMS ? "true" : "false");
-
     if (schema->node->type != JSON_ARRAY)
     {
-        return 0;
+        return raise_error(schema, "'type': 'array'");
     }
 
     const unsigned *pair = code[-1].pair;
 
-    printf("minItems: %u\n", pair[0]);
-    printf("maxItems: %u\n", pair[1]);
-
-    if ((schema->node->size < pair[0]) ||
-        (schema->node->size > pair[1]))
+    if (schema->node->size < pair[0])
     {
-        return 0;
+        return raise_error(schema, "'minItems': %u", pair[0]);
+    }
+    if (schema->node->size > pair[1])
+    {
+        return raise_error(schema, "'maxItems': %u", pair[1]);
     }
     if ((code->flags & FLAG_UNIQUE_ITEMS) &&
         !json_unique_items(schema->node))
     {
-        return 0;
+        return raise_error(schema, "'uniqueItems': true");
     }
     if (code->jump == 0)
     {
@@ -235,50 +270,56 @@ static int eval_array_end(const code_t *code, schema_t *schema)
 
 static int eval_string(const code_t *code, schema_t *schema)
 {
-    printf("string\n");
-
     (void)code;
-    return schema->node->type == JSON_STRING;
+    if (schema->node->type == JSON_STRING)
+    {
+        return 1;
+    }
+    return raise_error(schema, "'type': 'string'");
 }
 
 static int eval_integer(const code_t *code, schema_t *schema)
 {
-    printf("integer\n");
-
     (void)code;
-    return schema->node->type == JSON_INTEGER;
+    if (schema->node->type == JSON_INTEGER)
+    {
+        return 1;
+    }
+    return raise_error(schema, "'type': 'integer'");
 }
 
 static int eval_number(const code_t *code, schema_t *schema)
 {
-    printf("number\n");
-
     (void)code;
-    return (schema->node->type & JSON_NUMBER) != 0;
+    if (schema->node->type & JSON_NUMBER)
+    {
+        return 1;
+    }
+    return raise_error(schema, "'type': 'number'");
 }
 
 static int eval_boolean(const code_t *code, schema_t *schema)
 {
-    printf("boolean\n");
-
     (void)code;
-    return (schema->node->type & JSON_BOOLEAN) != 0;
+    if (schema->node->type & JSON_BOOLEAN)
+    {
+        return 1;
+    }
+    return raise_error(schema, "'type': 'boolean'");
 }
 
 static int eval_null(const code_t *code, schema_t *schema)
 {
-    printf("null\n");
-
     (void)code;
-    return schema->node->type == JSON_NULL;
+    if (schema->node->type == JSON_NULL)
+    {
+        return 1;
+    }
+    return raise_error(schema, "'type': 'null'");
 }
 
 static int eval_property(const code_t *code, schema_t *schema)
 {
-    printf("property: %s\n", code->string);
-    printf("optional: %s\n", code[-1].flags & FLAG_OPTIONAL ? "true" : "false");
-    printf("nullable: %s\n", code[-1].flags & FLAG_NULLABLE ? "true" : "false");
-
     const json_t *object = schema->path[schema->depth - 1]; 
 
     for (unsigned index = 0; index < object->size; index++)
@@ -295,7 +336,11 @@ static int eval_property(const code_t *code, schema_t *schema)
             return 1;
         }
     }
-    return code[-1].flags & FLAG_OPTIONAL ? (int)code[-1].jump : 0;
+    if (code[-1].flags & FLAG_OPTIONAL)
+    {
+        return (int)code[-1].jump;
+    }
+    return raise_error(schema, "'required': '%s'", code->string);
 }
 
 static int eval_item(const code_t *code, schema_t *schema)
@@ -326,78 +371,124 @@ static int eval_item(const code_t *code, schema_t *schema)
                 return eval_null(code, schema);
         }
     }
-    return 0;
+    return raise_error(schema, "'minItems': %u", *index);
 }
 
 static int eval_const(const code_t *code, schema_t *schema)
 {
     if (schema->node->type == JSON_STRING)
     {
-        printf("const: %s\n", code->string);
-        return !strcmp(schema->node->string, code->string);
+        if (strcmp(schema->node->string, code->string))
+        {
+            return raise_error(schema, "'const': '%s'", code->string);
+        }
     }
-    else
+    else if (schema->node->number != code->number)
     {
-        printf("const: %g\n", code->number);
-        return schema->node->number == code->number;
+        if (schema->node->type == JSON_INTEGER)
+        {
+            return raise_error(schema, "'const': %.0f", code->number);
+        }
+        else
+        {
+            return raise_error(schema, "'const': %.17g", code->number);
+        }
     }
+    return 1;
 }
 
 static int eval_pattern(const code_t *code, schema_t *schema)
 {
-    printf("pattern: %s\n", code->string);
-
-    return test_regex(schema->node->string, code->string);
+    if (test_regex(schema->node->string, code->string))
+    {
+        return 1;
+    }
+    return raise_error(schema, "'pattern': '%s'", code->string);
 }
 
 static int eval_format(const code_t *code, schema_t *schema)
 {
-    printf("format: %s\n", code->string);
-
-    return test_match(schema->node->string, code->string);
+    if (test_match(schema->node->string, code->string))
+    {
+        return 1;
+    }
+    return raise_error(schema, "'format': '%s'", code->string);
 }
 
 static int eval_mask(const code_t *code, schema_t *schema)
 {
-    printf("mask: %s\n", code->string);
-
-    return test_mask(schema->node->string, code->string) != NULL;
+    if (test_mask(schema->node->string, code->string))
+    {
+        return 1;
+    }
+    return raise_error(schema, "'mask': '%s'", code->string);
 }
 
 static int eval_min_length(const code_t *code, schema_t *schema)
 {
-    printf("minLength: %zu\n", (size_t)code->number);
-
-    return string_length(schema->node->string) >= (size_t)code->number;
+    if (string_length(schema->node->string) >= (size_t)code->number)
+    {
+        return 1;
+    }
+    return raise_error(schema, "'minLength': %.0f", code->number);
 }
 
 static int eval_max_length(const code_t *code, schema_t *schema)
 {
-    printf("maxLength: %zu\n", (size_t)code->number);
-
-    return string_length(schema->node->string) <= (size_t)code->number;
+    if (string_length(schema->node->string) <= (size_t)code->number)
+    {
+        return 1;
+    }
+    return raise_error(schema, "'maxLength': %.0f", code->number);
 }
 static int eval_min(const code_t *code, schema_t *schema)
 {
-    printf("min: %f\n", code->number);
-
-    return schema->node->number >= code->number;
+    if (schema->node->number >= code->number)
+    {
+        return 1;
+    }
+    if (schema->node->type == JSON_INTEGER)
+    {
+        return raise_error(schema, "'min': %.0f", code->number);
+    }
+    else
+    {
+        return raise_error(schema, "'min': %.17g", code->number);
+    }
 }
 
 static int eval_max(const code_t *code, schema_t *schema)
 {
-    printf("max: %f\n", code->number);
-
-    return schema->node->number <= code->number;
+    if (schema->node->number <= code->number)
+    {
+        return 1;
+    }
+    if (schema->node->type == JSON_INTEGER)
+    {
+        return raise_error(schema, "'max': %.0f", code->number);
+    }
+    else
+    {
+        return raise_error(schema, "'max': %.17g", code->number);
+    }
 }
 
 static int eval_multiple_of(const code_t *code, schema_t *schema)
 {
-    printf("multipleOf: %f\n", code->number);
-
     double quotient = schema->node->number / code->number;
 
-    return fabs(quotient - round(quotient)) < 1e-9;
+    if (fabs(quotient - round(quotient)) < 1e-9)
+    {
+        return 1;
+    }
+    if (schema->node->type == JSON_INTEGER)
+    {
+        return raise_error(schema, "'multipleOf': %.0f", code->number);
+    }
+    else
+    {
+        return raise_error(schema, "'multipleOf': %.17g", code->number);
+    }
 }
 
 static int eval_meta(const code_t *code, schema_t *schema)
@@ -446,7 +537,9 @@ static code_t *frame_resize(frame_t *frame)
 static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
 {
     const frame_t *frame = event->data;
-    const path_t *parent = event->depth ? &frame->path[event->depth - 1] : NULL;
+    const path_t *parent = event->depth
+        ? &frame->path[event->depth - 1]
+        : NULL;
 
     switch (keyword)
     {
