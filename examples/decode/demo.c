@@ -17,10 +17,6 @@ static int decode(char *text)
 
     int rc = json_print(node);
 
-    if (rc == 0)
-    {
-        perror("json_print");
-    }
     free(node);
     return rc;
 }

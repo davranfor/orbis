@@ -52,13 +52,14 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    int rc = sexp_parse(text, print, NULL);
+    int rc = EXIT_SUCCESS;
 
-    if (!rc)
+    if (!sexp_parse(text, print, NULL))
     {
         fprintf(stderr, "Invalid S-expression\n");
+        rc = EXIT_FAILURE;
     }
     free(text);
-    return rc ? EXIT_SUCCESS : EXIT_FAILURE;
+    return rc;
 }
 

@@ -31,29 +31,31 @@ int main(int argc, char *argv[])
     {
         fprintf(stderr, "%s\n", path[0]);
         perror("file_read");
-        goto fail;
+        goto stop;
     }
     if (!(file[1] = file_read(path[1])))
     {
         fprintf(stderr, "%s\n", path[1]);
         perror("file_read");
-        goto fail;
+        goto stop;
     }
     if (!(node = json_decode(file[0])))
     {
         perror("json_decode");
-        goto fail;
+        goto stop;
     }
     if (!(code = json_compile(file[1])))
     {
         fprintf(stderr, "'%s' doesn't compile\n", path[1]);
-        goto fail;
+        goto stop;
     }
-    if (!(rc = json_validate(node, code, NULL, NULL)))
+    if (!json_validate(node, code, NULL, NULL))
     {
         fprintf(stderr, "'%s' doesn't validate against '%s'\n", path[0], path[1]);
+        goto stop;
     }
-fail:
+    rc = EXIT_SUCCESS;
+stop:
     free(file[0]);
     free(file[1]);
     free(node);
