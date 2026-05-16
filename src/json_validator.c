@@ -9,9 +9,6 @@
 #include <stdarg.h>
 #include <string.h>
 #include <math.h>
-
-#include "clib_unicode.h"
-
 #include "clib_string.h"
 #include "clib_regex.h"
 #include "clib_match.h"
@@ -162,16 +159,17 @@ static void write_path(const schema_t *schema, char *str, size_t size)
     {
         const json_t *parent = schema->path[depth - 1];
         const json_t *child = schema->path[depth];
-        
-        length += write_node(parent, child, path, size);
+        size_t bytes = write_node(parent, child, path, size);
+
+        length += bytes;
         if (length > max_length)
         {
             length = string_sanitize(str, max_length);
             snprintf(str + length, 4, "...");
             return;
         }
-        path += length;
-        size -= length;
+        path += bytes;
+        size -= bytes;
     }
     if ((schema->depth > 0) && (schema->item[schema->depth - 1] > 0))
     {
