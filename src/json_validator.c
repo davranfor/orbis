@@ -207,7 +207,7 @@ static int raise_error(const schema_t *schema, const char *fmt, ...)
         return 0;
     }
 
-    char path[16] = "/";
+    char path[256] = "/";
 
     write_path(schema, path, sizeof path);
 
@@ -215,7 +215,7 @@ static int raise_error(const schema_t *schema, const char *fmt, ...)
 
     va_start(args, fmt);
 
-    char rule[16];
+    char rule[256];
     int length = vsnprintf(rule, sizeof rule, fmt, args);
 
     if ((size_t)length >= sizeof rule)
