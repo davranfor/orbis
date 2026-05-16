@@ -9,6 +9,9 @@
 #include <stdarg.h>
 #include <string.h>
 #include <math.h>
+
+#include "clib_unicode.h"
+
 #include "clib_string.h"
 #include "clib_regex.h"
 #include "clib_match.h"
@@ -118,22 +121,22 @@ static size_t write_key(char *path, size_t size, char *key)
 {
     int length = snprintf(path, size, "/%s", key);
 
-    if ((length > 0) && ((size_t)length < size))
+    if ((length > 0) && ((size_t)length > size))
     {
-        return (size_t)length;
+        return size;
     }
-    return 0;
+    return (size_t)length;
 }
 
 static size_t write_index(char *path, size_t size, unsigned index)
 {
     int length = snprintf(path, size, "/%u", index);
 
-    if ((length > 0) && ((size_t)length < size))
+    if ((length > 0) && ((size_t)length > size))
     {
-        return (size_t)length;
+        return size;
     }
-    return 0;
+    return (size_t)length;
 }
 
 static size_t write_node(const json_t *parent, const json_t *child,
@@ -150,18 +153,21 @@ static size_t write_node(const json_t *parent, const json_t *child,
     return 0;
 }
 
-static void write_path(const schema_t *schema, char *path, size_t size)
+static void write_path(const schema_t *schema, char *str, size_t size)
 {
-    size -= 4; // Keep space to write "/..." if needed
+    size_t max_length = size - 4, length = 0; 
+    char *path = str;
+
     for (unsigned depth = 1; depth < schema->depth; depth++)
     {
         const json_t *parent = schema->path[depth - 1];
         const json_t *child = schema->path[depth];
-        size_t length = write_node(parent, child, path, size);
-
-        if (length == 0)
+        
+        length += write_node(parent, child, path, size);
+        if (length > max_length)
         {
-            snprintf(path, 5, "/...");
+            length = string_sanitize(str, max_length);
+            snprintf(str + length, 4, "...");
             return;
         }
         path += length;
@@ -176,12 +182,22 @@ static void write_path(const schema_t *schema, char *path, size_t size)
         {
             const json_t *child = &parent->child[index];
 
-            if (!write_node(parent, child, path, size))
+            length += write_node(parent, child, path, size);
+            if (length > max_length)
             {
-                snprintf(path, 5, "/...");
+                length = string_sanitize(str, max_length);
+                snprintf(str + length, 4, "...");
+                return;
             }
         }
     }
+}
+
+static void write_rule(char *rule, size_t size)
+{
+    size_t length = string_sanitize(rule, size - 4);
+
+    snprintf(rule + length, 4, "...");
 }
 
 static int raise_error(const schema_t *schema, const char *fmt, ...)
@@ -191,7 +207,7 @@ static int raise_error(const schema_t *schema, const char *fmt, ...)
         return 0;
     }
 
-    char path[256] = "/";
+    char path[16] = "/";
 
     write_path(schema, path, sizeof path);
 
@@ -199,12 +215,12 @@ static int raise_error(const schema_t *schema, const char *fmt, ...)
 
     va_start(args, fmt);
 
-    char rule[256];
-    int length = vsnprintf(rule, sizeof(rule) - 3, fmt, args);
+    char rule[16];
+    int length = vsnprintf(rule, sizeof rule, fmt, args);
 
-    if ((length > 0) && ((size_t)length >= sizeof(rule) - 3))
+    if ((size_t)length >= sizeof rule)
     {
-        snprintf(rule + sizeof(rule) - 4, 4, "...");
+        write_rule(rule, sizeof rule);
     }
     va_end(args);
 

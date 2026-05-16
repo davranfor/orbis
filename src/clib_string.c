@@ -62,6 +62,17 @@ char *string_vprint(const char *fmt, va_list args)
     return str;
 }
 
+/* Truncates str at a valid UTF-8 boundary at or before length */ 
+size_t string_sanitize(char *str, size_t length)
+{
+    while ((length > 0) && !is_utf8(str[length]))
+    {
+        length--;
+    }
+    str[length] = '\0';
+    return length;
+}
+
 /**
  * memmem implementation
  * Search for a substring (substr) within a larger string (str) given the lengths

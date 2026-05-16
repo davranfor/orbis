@@ -4,7 +4,7 @@
     (property "age" (integer (min 0) (max 120) (const 42)))
     (property "address"
         (object
-            (property "street" (string))
+            (property "street" (string (const "En un lugar de la mancha")))
             (property "city" (string))
             (property "state" (string))
             (property "postalCode" (string (pattern "^[0-9]{5}$")))

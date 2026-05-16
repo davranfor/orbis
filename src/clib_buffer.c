@@ -153,16 +153,16 @@ char *buffer_put(buffer_t *buffer, char chr)
     return buffer->text;
 }
 
-char *buffer_set_length(buffer_t *buffer, size_t index)
+char *buffer_set_length(buffer_t *buffer, size_t length)
 {
-    if ((index <= buffer->length) && (buffer->text != NULL))
+    if ((length <= buffer->length) && (buffer->text != NULL))
     {
-        while ((index > 0) && !is_utf8(buffer->text[index]))
+        while ((length > 0) && !is_utf8(buffer->text[length]))
         {
-            index--;
+            length--;
         }
-        buffer->text[index] = '\0';
-        buffer->length = index;
+        buffer->text[length] = '\0';
+        buffer->length = length;
     }
     return buffer->text;
 }
