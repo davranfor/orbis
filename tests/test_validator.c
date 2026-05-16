@@ -11,13 +11,10 @@
 #include <unistd.h>
 #include "test.h"
 #include "json_writer.h"
+#include "json_reader.h"
 #include "json_validator.h"
 
 /*
- * NOTE: json_validator.c emits unconditional printf() trace lines on every
- * evaluation step. We mute stdout during the tests so only the summary
- * (also stdout) remains visible.
- *
  * IMPORTANT: json_compile() parses its argument in-place and the resulting
  * bytecode keeps pointers into that buffer (property names, patterns, ...).
  * Every schema must therefore live in a buffer that outlives the bytecode —
@@ -69,6 +66,46 @@ static int validate_str(const char *src, const void *code)
     int rc = json_validate(node, code, NULL, NULL);
     free(node);
     return rc;
+}
+
+/* Callback helper: checks that the callback receives the expected path and rule */
+typedef struct
+{
+    const char *expect_path;
+    const char *expect_rule;
+    int matched;
+} cb_check_t;
+
+static void check_callback(const json_t *node, void *data)
+{
+    cb_check_t *check = data;
+    const json_t *path = json_find(node, "path");
+    const json_t *rule = json_find(node, "rule");
+
+    check->matched = (path != NULL) && (rule != NULL)
+        && !strcmp(json_string(path), check->expect_path)
+        && !strcmp(json_string(rule), check->expect_rule);
+}
+
+/* Like validate_str but wires up check_callback and returns 1 if path+rule match */
+static int validate_cb(const char *src, const void *code,
+    const char *exp_path, const char *exp_rule)
+{
+    char buf[256];
+
+    strncpy(buf, src, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+
+    cb_check_t check = { exp_path, exp_rule, 0 };
+    json_t *node = json_decode(buf);
+
+    if (node == NULL)
+    {
+        return -1;
+    }
+    json_validate(node, code, check_callback, &check);
+    free(node);
+    return check.matched;
 }
 
 /* NULL safety */
@@ -345,6 +382,88 @@ static void test_number_constraints(void)
     free(code);
 }
 
+/* Error callback — path and rule values for various failure kinds */
+static void test_callback(void)
+{
+    /* Type error at root: path is always "/" at depth 0 */
+    {
+        char schema[] = "(string)";
+        void *code = json_compile(schema);
+        TEST(code != NULL);
+        if (code)
+        {
+            TEST(validate_cb("42",   code, "/", "type: string") == 1);
+            TEST(validate_cb("true", code, "/", "type: string") == 1);
+            free(code);
+        }
+    }
+
+    /* Required property missing: path points to the object ("/") */
+    {
+        char schema[] = "(object (property \"name\" (string)))";
+        void *code = json_compile(schema);
+        TEST(code != NULL);
+        if (code)
+        {
+            TEST(validate_cb("{}",          code, "/", "required: name") == 1);
+            TEST(validate_cb("{\"age\":30}", code, "/", "required: name") == 1);
+            free(code);
+        }
+    }
+
+    /* String constraint violation: path descends to the property */
+    {
+        char schema[] = "(object (property \"x\" (string (minLength 3))))";
+        void *code = json_compile(schema);
+        TEST(code != NULL);
+        if (code)
+        {
+            TEST(validate_cb("{\"x\":\"ab\"}", code, "/x", "minLength: 3") == 1);
+            free(code);
+        }
+    }
+
+    /* Number constraint violation at root */
+    {
+        char schema[] = "(integer (min 5))";
+        void *code = json_compile(schema);
+        TEST(code != NULL);
+        if (code)
+        {
+            TEST(validate_cb("3",  code, "/", "min: 5") == 1);
+            TEST(validate_cb("12", code, "/", "max: 10") == 0); /* 12 >= 5: passes, no callback */
+            free(code);
+        }
+    }
+
+    /* Nested path: two levels deep */
+    {
+        char schema[] =
+            "(object"
+            "  (property \"a\" (object"
+            "    (property \"b\" (string)))))";
+        void *code = json_compile(schema);
+        TEST(code != NULL);
+        if (code)
+        {
+            TEST(validate_cb("{\"a\":{\"b\":42}}", code, "/a/b", "type: string") == 1);
+            free(code);
+        }
+    }
+
+    /* No callback: validate_str still returns 0 on failure (no crash) */
+    {
+        char schema[] = "(boolean)";
+        void *code = json_compile(schema);
+        TEST(code != NULL);
+        if (code)
+        {
+            TEST(validate_str("42", code) == 0);
+            free(code);
+        }
+    }
+}
+
 int main(void)
 {
     mute_stdout();
@@ -360,6 +479,7 @@ int main(void)
     test_tuple();
     test_string_constraints();
     test_number_constraints();
+    test_callback();
 
     unmute_stdout();
 
