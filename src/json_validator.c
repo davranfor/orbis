@@ -111,21 +111,100 @@ typedef struct code
     };
 } code_t;
 
-static int raise_error(schema_t *, const char *, ...)
+static int raise_error(const schema_t *, const char *, ...)
     __attribute__((format(printf, 2, 3)));
 
-static int raise_error(schema_t *schema, const char *fmt, ...)
+static size_t write_key(char *path, size_t size, char *key)
+{
+    int length = snprintf(path, size, "/%s", key);
+
+    if ((length > 0) && ((size_t)length < size))
+    {
+        return (size_t)length;
+    }
+    return 0;
+}
+
+static size_t write_index(char *path, size_t size, unsigned index)
+{
+    int length = snprintf(path, size, "/%u", index);
+
+    if ((length > 0) && ((size_t)length < size))
+    {
+        return (size_t)length;
+    }
+    return 0;
+}
+
+static size_t write_node(const json_t *parent, const json_t *child,
+     char *path, size_t size)
+{
+    if (child->key != NULL)
+    {
+        return write_key(path, size, child->key);
+    }
+    if (parent->size > 0)
+    {
+        return write_index(path, size, (unsigned)(child - parent->child));
+    }
+    return 0;
+}
+
+static void write_path(const schema_t *schema, char *path, size_t size)
+{
+    size -= 4; // Keep space to write "/..." if needed
+    // Print iterables in path
+    for (unsigned depth = 1; depth < schema->depth; depth++)
+    {
+        const json_t *parent = schema->path[depth - 1];
+        const json_t *child = schema->path[depth];
+        size_t length = write_node(parent, child, path, size);
+
+        if (length == 0)
+        {
+            printf(path, size, "/...");
+            return;
+        }
+        path += length;
+        size -= length;
+    }
+    // Print current node
+    if ((schema->depth > 0) && (schema->item[schema->depth - 1] > 0))
+    {
+        const json_t *parent = schema->path[schema->depth - 1];
+        unsigned index = schema->item[schema->depth - 1] - 1;
+
+        if (index >= parent->size)
+        {
+            return;
+        }
+
+        const json_t *child = &parent->child[index];
+        size_t length = write_node(parent, child, path, size);
+
+        if (length == 0)
+        {
+            printf(path, size, "/...");
+        }
+    }
+}
+
+static int raise_error(const schema_t *schema, const char *fmt, ...)
 {
     if (schema->callback == NULL)
     {
         return 0;
     }
 
+    char path[256] = "/";
+
+    write_path(schema, path, sizeof(path));
+
     va_list args;
 
     va_start(args, fmt);
 
-    char *str = string_vprint(fmt, args);
+    char *rule = string_vprint(fmt, args);
 
     va_end(args);
 
@@ -133,16 +212,8 @@ static int raise_error(schema_t *schema, const char *fmt, ...)
     {
         .child = (json_t [])
         {
-            {
-                .key = "node",
-                .type = schema->node->key ? JSON_OBJECT : JSON_ARRAY,
-                .child = json_cast(schema->node),
-                .size = 1
-            },
-            {   .key = "rule",
-                .string = str,
-                .type = JSON_STRING
-            },
+            { .key = "path", .string = path, .type = JSON_STRING },
+            { .key = "rule", .string = rule, .type = JSON_STRING },
         },
         .type = JSON_OBJECT,
         .size = 2
@@ -340,6 +411,7 @@ static int eval_property(const code_t *code, schema_t *schema)
     {
         return (int)code[-1].jump;
     }
+    schema->item[schema->depth - 1]++;
     return raise_error(schema, "'required': '%s'", code->string);
 }
 
@@ -371,7 +443,7 @@ static int eval_item(const code_t *code, schema_t *schema)
                 return eval_null(code, schema);
         }
     }
-    return raise_error(schema, "'minItems': %u", *index);
+    return raise_error(schema, "'minItems': %u", ++(*index));
 }
 
 static int eval_const(const code_t *code, schema_t *schema)
