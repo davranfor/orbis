@@ -153,7 +153,7 @@ char *buffer_put(buffer_t *buffer, char chr)
     return buffer->text;
 }
 
-char *buffer_set_length(buffer_t *buffer, size_t length)
+char *buffer_truncate(buffer_t *buffer, size_t length)
 {
     if ((length <= buffer->length) && (buffer->text != NULL))
     {
@@ -181,7 +181,7 @@ void buffer_set_error(buffer_t *buffer, int error)
 
 void buffer_reset(buffer_t *buffer)
 {
-    buffer_set_length(buffer, 0);
+    buffer_truncate(buffer, 0);
     buffer->error = 0;
 }
 

@@ -164,7 +164,7 @@ static void write_path(const schema_t *schema, char *str, size_t size)
         length += bytes;
         if (length > max_length)
         {
-            length = string_sanitize(str, max_length);
+            length = string_truncate(str, max_length);
             snprintf(str + length, 4, "...");
             return;
         }
@@ -185,7 +185,7 @@ static void write_path(const schema_t *schema, char *str, size_t size)
             length += write_node(parent, child, path, size);
             if (length > max_length)
             {
-                length = string_sanitize(str, max_length);
+                length = string_truncate(str, max_length);
                 snprintf(str + length, 4, "...");
                 return;
             }
@@ -195,7 +195,7 @@ static void write_path(const schema_t *schema, char *str, size_t size)
 
 static void truncate_rule(char *rule, size_t size)
 {
-    size_t length = string_sanitize(rule, size - 4);
+    size_t length = string_truncate(rule, size - 4);
 
     snprintf(rule + length, 4, "...");
 }

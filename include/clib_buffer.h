@@ -22,7 +22,7 @@ char *buffer_format(buffer_t *, const char *fmt, ...)
     __attribute__ ((format (printf, 2, 3)));
 char *buffer_write(buffer_t *, const char *);
 char *buffer_put(buffer_t *, char);
-char *buffer_set_length(buffer_t *, size_t);
+char *buffer_truncate(buffer_t *, size_t);
 void buffer_set_error(buffer_t *, int);
 void buffer_reset(buffer_t *);
 void buffer_clear(buffer_t *);
