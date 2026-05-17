@@ -118,22 +118,14 @@ static size_t write_key(char *key, char *path, size_t size)
 {
     int length = snprintf(path, size, "/%s", key);
 
-    if ((length > 0) && ((size_t)length > size))
-    {
-        return size;
-    }
-    return (size_t)length;
+    return length < 0 ? 0 : (size_t)length;
 }
 
 static size_t write_index(unsigned index, char *path, size_t size)
 {
     int length = snprintf(path, size, "/%u", index);
 
-    if ((length > 0) && ((size_t)length > size))
-    {
-        return size;
-    }
-    return (size_t)length;
+    return length < 0 ? 0 : (size_t)length;
 }
 
 static size_t write_node(const json_t *parent, const json_t *child,
