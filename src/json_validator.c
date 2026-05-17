@@ -114,7 +114,7 @@ typedef struct code
 static int raise_error(const schema_t *, const char *, ...)
     __attribute__((format(printf, 2, 3)));
 
-static size_t write_key(char *path, size_t size, char *key)
+static size_t write_key(char *key, char *path, size_t size)
 {
     int length = snprintf(path, size, "/%s", key);
 
@@ -125,7 +125,7 @@ static size_t write_key(char *path, size_t size, char *key)
     return (size_t)length;
 }
 
-static size_t write_index(char *path, size_t size, unsigned index)
+static size_t write_index(unsigned index, char *path, size_t size)
 {
     int length = snprintf(path, size, "/%u", index);
 
@@ -141,18 +141,18 @@ static size_t write_node(const json_t *parent, const json_t *child,
 {
     if (child->key != NULL)
     {
-        return write_key(path, size, child->key);
+        return write_key(child->key, path, size);
     }
     if (parent->size > 0)
     {
-        return write_index(path, size, (unsigned)(child - parent->child));
+        return write_index((unsigned)(child - parent->child), path, size);
     }
     return 0;
 }
 
 static void write_path(const schema_t *schema, char *str, size_t size)
 {
-    size_t max_length = size - 4, length = 0; 
+    size_t length = 0, max_length = size - 4;
     char *path = str;
 
     for (unsigned depth = 1; depth < schema->depth; depth++)
@@ -171,12 +171,14 @@ static void write_path(const schema_t *schema, char *str, size_t size)
         path += bytes;
         size -= bytes;
     }
-    if ((schema->depth > 0) && (schema->item[schema->depth - 1] > 0))
+    if ((schema->depth > 0) &&
+        (schema->item[schema->depth - 1] > 0) &&
+        (schema->node->type & JSON_SCALAR))
     {
         const json_t *parent = schema->path[schema->depth - 1];
         unsigned index = schema->item[schema->depth - 1] - 1;
 
-        if ((index < parent->size) && (schema->node->type & JSON_SCALAR))
+        if (index < parent->size)
         {
             const json_t *child = &parent->child[index];
 
@@ -191,7 +193,7 @@ static void write_path(const schema_t *schema, char *str, size_t size)
     }
 }
 
-static void write_rule(char *rule, size_t size)
+static void truncate_rule(char *rule, size_t size)
 {
     size_t length = string_sanitize(rule, size - 4);
 
@@ -216,9 +218,9 @@ static int raise_error(const schema_t *schema, const char *fmt, ...)
     char rule[256];
     int length = vsnprintf(rule, sizeof rule, fmt, args);
 
-    if ((size_t)length >= sizeof rule)
+    if ((length > 0) && ((size_t)length >= sizeof rule))
     {
-        write_rule(rule, sizeof rule);
+        truncate_rule(rule, sizeof rule);
     }
     va_end(args);
 
@@ -466,21 +468,15 @@ static int eval_const(const code_t *code, schema_t *schema)
 {
     if (schema->node->type == JSON_STRING)
     {
-        if (strcmp(schema->node->string, code->string))
-        {
-            return raise_error(schema, "const: %s", code->string);
-        }
+        return strcmp(schema->node->string, code->string)
+            ? raise_error(schema, "const: %s", code->string)
+            : 1;
     }
-    else if (schema->node->number != code->number)
+    if (schema->node->number != code->number)
     {
-        if (schema->node->type == JSON_INTEGER)
-        {
-            return raise_error(schema, "const: %.0f", code->number);
-        }
-        else
-        {
-            return raise_error(schema, "const: %.17g", code->number);
-        }
+        return schema->node->type == JSON_INTEGER
+            ? raise_error(schema, "const: %.0f", code->number)
+            : raise_error(schema, "const: %.17g", code->number);
     }
     return 1;
 }
@@ -529,17 +525,16 @@ static int eval_max_length(const code_t *code, schema_t *schema)
     }
     return raise_error(schema, "maxLength: %.0f", code->number);
 }
+
 static int eval_min(const code_t *code, schema_t *schema)
 {
     if (schema->node->number >= code->number)
     {
         return 1;
     }
-    if (schema->node->type == JSON_INTEGER)
-    {
-        return raise_error(schema, "min: %.0f", code->number);
-    }
-    return raise_error(schema, "min: %.17g", code->number);
+    return schema->node->type == JSON_INTEGER
+        ? raise_error(schema, "min: %.0f", code->number)
+        : raise_error(schema, "min: %.17g", code->number);
 }
 
 static int eval_max(const code_t *code, schema_t *schema)
@@ -548,11 +543,9 @@ static int eval_max(const code_t *code, schema_t *schema)
     {
         return 1;
     }
-    if (schema->node->type == JSON_INTEGER)
-    {
-        return raise_error(schema, "max: %.0f", code->number);
-    }
-    return raise_error(schema, "max: %.17g", code->number);
+    return schema->node->type == JSON_INTEGER
+        ? raise_error(schema, "max: %.0f", code->number)
+        : raise_error(schema, "max: %.17g", code->number);
 }
 
 static int eval_multiple_of(const code_t *code, schema_t *schema)
@@ -563,11 +556,9 @@ static int eval_multiple_of(const code_t *code, schema_t *schema)
     {
         return 1;
     }
-    if (schema->node->type == JSON_INTEGER)
-    {
-        return raise_error(schema, "multipleOf: %.0f", code->number);
-    }
-    return raise_error(schema, "multipleOf: %.17g", code->number);
+    return schema->node->type == JSON_INTEGER
+        ? raise_error(schema, "multipleOf: %.0f", code->number)
+        : raise_error(schema, "multipleOf: %.17g", code->number);
 }
 
 static int eval_meta(const code_t *code, schema_t *schema)
