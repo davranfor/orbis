@@ -2,12 +2,12 @@
     (property "code" (string (mask "09999")))
     (property "name" (string (minLength 1) (maxLength 50)))
     (property "age" (integer (min 0) (max 120) (const 42)))
-    (property "add/ress"
+    (property "address"
         (object
             (property "street" (string))
             (property "city" (string))
             (property "state" (string))
-            (property "postal/Code" (string (pattern "^[0-9]{5}$")))
+            (property "postalCode" (string (pattern "^[0-9]{5}$")))
         )
     )
     (property "email" (string (format "email")))

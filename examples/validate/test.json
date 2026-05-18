@@ -2,11 +2,11 @@
   "code": "00001",
   "name": "John Smith",
   "age": 42,
-  "add/ress": {
+  "address": {
     "street": "Calle del socorro, 42",
     "city": "Palma de Mallorca",
     "state": "Baleares",
-    "postal/Code": "7003"
+    "postalCode": "07003"
   },
   "email": "john.doe@mail.com",
   "items": [1, 2, 3],

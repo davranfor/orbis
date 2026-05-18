@@ -221,7 +221,7 @@ static int raise_error(const schema_t *schema, const char *fmt, ...)
         return 0;
     }
 
-    char path[23] = "/";
+    char path[256] = "/";
 
     write_path(schema, path, sizeof path);
 
