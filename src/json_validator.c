@@ -136,7 +136,7 @@ static size_t encode_key(char *key, size_t size)
     return length;
 }
 
-static size_t write_key(char *key, char *path, size_t size)
+static size_t write_key(const char *key, char *path, size_t size)
 {
     int length = snprintf(path, size, "/%s", key);
 
