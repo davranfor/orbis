@@ -114,11 +114,33 @@ typedef struct code
 static int raise_error(const schema_t *, const char *, ...)
     __attribute__((format(printf, 2, 3)));
 
+static size_t encode_key(char *key, size_t size)
+{
+    size_t length = strlen(key);
+
+    for (size_t index = 0; ; index++)
+    {
+        index = strcspn(key + index, "~/") + index;
+        if (key[index] == '\0')
+        {
+            break;
+        }
+        memmove(key + index + 1, key + index, length - index);
+        memcpy(key + index, key[index] == '~' ? "~0" : "~1", 2);
+        if (length < size)
+        {
+            length++;
+        }
+        key[length] = '\0';
+    }
+    return length;
+}
+
 static size_t write_key(char *key, char *path, size_t size)
 {
     int length = snprintf(path, size, "/%s", key);
 
-    return length < 0 ? 0 : (size_t)length;
+    return length < 0 ? 0 : encode_key(path + 1, size - 1) + 1;
 }
 
 static size_t write_index(unsigned index, char *path, size_t size)
@@ -199,7 +221,7 @@ static int raise_error(const schema_t *schema, const char *fmt, ...)
         return 0;
     }
 
-    char path[256] = "/";
+    char path[23] = "/";
 
     write_path(schema, path, sizeof path);
 
