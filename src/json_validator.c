@@ -127,7 +127,7 @@ static size_t encode_key(char *key, size_t size)
         }
         memmove(key + index + 1, key + index, length - index);
         memmove(key + index, key[index] == '~' ? "~0" : "~1", 2);
-        if (length < size)
+        if (length + 1 < size)
         {
             length++;
         }
