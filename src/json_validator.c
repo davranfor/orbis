@@ -286,6 +286,7 @@ static int eval_object_end(const code_t *code, schema_t *schema)
 
         if (object->size != schema->item[schema->depth - 1])
         {
+            schema->node = object;
             return raise_error(schema, "additionalProperties: false");
         }
     }   
@@ -315,7 +316,7 @@ static int eval_tuple_end(const code_t *code, schema_t *schema)
 
     if (array->size != index)
     {
-        schema->node = schema->path[schema->depth - 1];
+        schema->node = array;
         return raise_error(schema, "maxItems: %u", index);
     }
     schema->node = schema->path[--schema->depth];
