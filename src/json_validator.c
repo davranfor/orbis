@@ -314,7 +314,7 @@ static int eval_tuple_end(const code_t *code, schema_t *schema)
     const json_t *array = schema->path[schema->depth - 1];
     unsigned index = schema->item[schema->depth - 1];
 
-    if (array->size != index)
+    if ((index > 0) && (array->size != index))
     {
         schema->node = array;
         return raise_error(schema, "maxItems: %u", index);
@@ -884,7 +884,11 @@ static int push_reduce(const sexp_event_t *event)
             {
                 return 0;
             }
-            code->flags = frame->code[path->index].flags;
+            if (path->index + 1 == frame->size - 1)
+            {
+                code->flags |= FLAG_ADDITIONAL_PROPERTIES;
+            }
+            code->flags |= frame->code[path->index].flags;
             code->action = eval_object_end;
             break;
         case KEYWORD_TUPLE:
