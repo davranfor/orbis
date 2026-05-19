@@ -206,6 +206,21 @@ static void test_object(void)
     TEST(validate_str("{\"name\":42}",                   code) == 0);   /* wrong type */
 
     free(code);
+
+    /* Empty (object): accepts any object regardless of its properties */
+    {
+        char s[] = "(object)";
+        void *c = json_compile(s);
+        TEST(c != NULL);
+        if (c)
+        {
+            TEST(validate_str("{}",                    c) == 1);
+            TEST(validate_str("{\"x\":1,\"y\":\"z\"}", c) == 1);
+            TEST(validate_str("[]",                    c) == 0); /* not an object */
+            TEST(validate_str("null",                  c) == 0); /* not an object */
+            free(c);
+        }
+    }
 }
 
 /* Array of T with size bounds */
@@ -236,9 +251,23 @@ static void test_tuple(void)
     TEST(validate_str("[\"x\",1]",      code) == 1); /* correct order */
     TEST(validate_str("[1,\"x\"]",      code) == 0); /* swapped types */
     TEST(validate_str("[\"x\"]",        code) == 0); /* too few */
-    TEST(validate_str("[\"x\",1,true]", code) == 0); /* extra items now rejected */
+    TEST(validate_str("[\"x\",1,true]", code) == 0); /* extra items rejected */
 
     free(code);
+
+    /* Empty (tuple): accepts any array */
+    {
+        char s[] = "(tuple)";
+        void *c = json_compile(s);
+        TEST(c != NULL);
+        if (c)
+        {
+            TEST(validate_str("[]",      c) == 1);
+            TEST(validate_str("[1,2,3]", c) == 1);
+            TEST(validate_str("{}",      c) == 0); /* not an array */
+            free(c);
+        }
+    }
 }
 
 /* String constraints: minLength, maxLength */
