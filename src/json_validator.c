@@ -190,7 +190,7 @@ static void write_path(const schema_t *schema, char *str, size_t size)
         const json_t *parent = schema->path[schema->depth - 1];
         unsigned index = schema->item[schema->depth - 1] - 1;
 
-        if (index < parent->size)
+        if ((schema->node != parent) && (index < parent->size))
         {
             const json_t *child = &parent->child[index];
 
@@ -436,7 +436,7 @@ static int eval_property(const code_t *code, schema_t *schema)
     {
         return (int)code[-1].jump;
     }
-    schema->node = schema->path[schema->depth - 1];
+    schema->node = object;
     return raise_error(schema, "required: %s", code->string);
 }
 
@@ -468,7 +468,7 @@ static int eval_item(const code_t *code, schema_t *schema)
                 return eval_null(code, schema);
         }
     }
-    schema->node = schema->path[schema->depth - 1];
+    schema->node = array;
     return raise_error(schema, "minItems: %u", *index + 1);
 }
 
@@ -491,6 +491,10 @@ static int eval_const(const code_t *code, schema_t *schema)
 
 static int eval_pattern(const code_t *code, schema_t *schema)
 {
+    if (schema->node->string[0] == '\0')
+    {
+        return 1;
+    }
     if (test_regex(schema->node->string, code->string))
     {
         return 1;
@@ -500,6 +504,10 @@ static int eval_pattern(const code_t *code, schema_t *schema)
 
 static int eval_format(const code_t *code, schema_t *schema)
 {
+    if (schema->node->string[0] == '\0')
+    {
+        return 1;
+    }
     if (test_match(schema->node->string, code->string))
     {
         return 1;
@@ -509,6 +517,10 @@ static int eval_format(const code_t *code, schema_t *schema)
 
 static int eval_mask(const code_t *code, schema_t *schema)
 {
+    if (schema->node->string[0] == '\0')
+    {
+        return 1;
+    }
     if (test_mask(schema->node->string, code->string))
     {
         return 1;
