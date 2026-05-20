@@ -270,6 +270,52 @@ static void test_tuple(void)
     }
 }
 
+/* Empty string bypasses pattern, format and mask */
+static void test_empty_string(void)
+{
+    /* pattern */
+    {
+        char schema[] = "(string (pattern \"^[0-9]+$\"))";
+        void *code = json_compile(schema);
+        TEST(code != NULL);
+        if (code)
+        {
+            TEST(validate_str("\"123\"", code) == 1); /* matches */
+            TEST(validate_str("\"\"",    code) == 1); /* empty: bypass */
+            TEST(validate_str("\"abc\"", code) == 0); /* no match */
+            free(code);
+        }
+    }
+
+    /* format */
+    {
+        char schema[] = "(string (format \"email\"))";
+        void *code = json_compile(schema);
+        TEST(code != NULL);
+        if (code)
+        {
+            TEST(validate_str("\"a@b.com\"", code) == 1); /* valid email */
+            TEST(validate_str("\"\"",        code) == 1); /* empty: bypass */
+            TEST(validate_str("\"notmail\"", code) == 0); /* invalid */
+            free(code);
+        }
+    }
+
+    /* mask */
+    {
+        char schema[] = "(string (mask \"99999\"))";
+        void *code = json_compile(schema);
+        TEST(code != NULL);
+        if (code)
+        {
+            TEST(validate_str("\"12345\"", code) == 1); /* matches mask */
+            TEST(validate_str("\"\"",      code) == 1); /* empty: bypass */
+            TEST(validate_str("\"1234x\"", code) == 0); /* no match */
+            free(code);
+        }
+    }
+}
+
 /* String constraints: minLength, maxLength */
 static void test_string_constraints(void)
 {
@@ -506,6 +552,7 @@ int main(void)
     test_unique_items();
     test_array();
     test_tuple();
+    test_empty_string();
     test_string_constraints();
     test_number_constraints();
     test_callback();
