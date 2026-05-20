@@ -185,9 +185,7 @@ static void write_path(const schema_t *schema, char *str, size_t size)
         path += bytes;
         size -= bytes;
     }
-    if ((schema->depth > 0) &&
-        (schema->item[schema->depth - 1] > 0) &&
-        (schema->node->type & JSON_SCALAR))
+    if ((schema->depth > 0) && (schema->item[schema->depth - 1] > 0))
     {
         const json_t *parent = schema->path[schema->depth - 1];
         unsigned index = schema->item[schema->depth - 1] - 1;
@@ -201,7 +199,6 @@ static void write_path(const schema_t *schema, char *str, size_t size)
             {
                 length = string_truncate(str, max_length);
                 snprintf(str + length, 4, "...");
-                return;
             }
         }
     }
@@ -345,11 +342,7 @@ static int eval_array(const code_t *code, schema_t *schema)
     {
         return raise_error(schema, "uniqueItems: true");
     }
-    if (code->jump == 0)
-    {
-        return 2;
-    }
-    if (schema->node->size == 0)
+    if ((code->jump == 0) || (schema->node->size == 0))
     {
         return (int)code->jump + 2;
     }
