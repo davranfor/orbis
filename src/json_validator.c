@@ -1021,7 +1021,7 @@ static int push_reduce(const sexp_event_t *event)
             }
             if (path->size == 0)
             {
-                code->flags |= FLAG_ADDITIONAL;
+                code->flags = FLAG_ADDITIONAL;
             }
             code->flags |= frame->code[path->index].flags;
             code->action = eval_object_end;
@@ -1034,7 +1034,7 @@ static int push_reduce(const sexp_event_t *event)
             }
             if (path->size == 0)
             {
-                code->flags |= FLAG_ADDITIONAL;
+                code->flags = FLAG_ADDITIONAL;
             }
             code->flags |= frame->code[path->index].flags;
             code->action = eval_tuple_end;
