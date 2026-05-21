@@ -17,32 +17,34 @@
 #include "json_reader.h"
 #include "json_validator.h"
 
-#define KEYWORD(_)                          \
-    _(KEYWORD_OBJECT,       "object")       \
-    _(KEYWORD_TUPLE,        "tuple")        \
-    _(KEYWORD_ARRAY,        "array")        \
-    _(KEYWORD_STRING,       "string")       \
-    _(KEYWORD_INTEGER,      "integer")      \
-    _(KEYWORD_NUMBER,       "number")       \
-    _(KEYWORD_BOOLEAN,      "boolean")      \
-    _(KEYWORD_NULL,         "null")         \
-    _(KEYWORD_ANY,          "any")          \
-    _(KEYWORD_PROPERTY,     "property")     \
-    _(KEYWORD_OPTIONAL,     "optional")     \
-    _(KEYWORD_NULLABLE,     "nullable")     \
-    _(KEYWORD_UNIQUE_ITEMS, "uniqueItems")  \
-    _(KEYWORD_MIN_ITEMS,    "minItems")     \
-    _(KEYWORD_MAX_ITEMS,    "maxItems")     \
-    _(KEYWORD_CONST,        "const")        \
-    _(KEYWORD_ENUM,         "enum")         \
-    _(KEYWORD_PATTERN,      "pattern")      \
-    _(KEYWORD_FORMAT,       "format")       \
-    _(KEYWORD_MASK,         "mask")         \
-    _(KEYWORD_MIN_LENGTH,   "minLength")    \
-    _(KEYWORD_MAX_LENGTH,   "maxLength")    \
-    _(KEYWORD_MIN,          "min")          \
-    _(KEYWORD_MAX,          "max")          \
-    _(KEYWORD_MULTIPLE_OF,  "multipleOf")
+#define KEYWORD(_)                                  \
+    _(KEYWORD_OBJECT,           "object")           \
+    _(KEYWORD_TUPLE,            "tuple")            \
+    _(KEYWORD_ARRAY,            "array")            \
+    _(KEYWORD_STRING,           "string")           \
+    _(KEYWORD_INTEGER,          "integer")          \
+    _(KEYWORD_NUMBER,           "number")           \
+    _(KEYWORD_BOOLEAN,          "boolean")          \
+    _(KEYWORD_NULL,             "null")             \
+    _(KEYWORD_ANY,              "any")              \
+    _(KEYWORD_PROPERTY,         "property")         \
+    _(KEYWORD_MIN_PROPERTIES,   "minProperties")    \
+    _(KEYWORD_MAX_PROPERTIES,   "maxProperties")    \
+    _(KEYWORD_OPTIONAL,         "optional")         \
+    _(KEYWORD_NULLABLE,         "nullable")         \
+    _(KEYWORD_MIN_ITEMS,        "minItems")         \
+    _(KEYWORD_MAX_ITEMS,        "maxItems")         \
+    _(KEYWORD_UNIQUE_ITEMS,     "uniqueItems")      \
+    _(KEYWORD_CONST,            "const")            \
+    _(KEYWORD_ENUM,             "enum")             \
+    _(KEYWORD_PATTERN,          "pattern")          \
+    _(KEYWORD_FORMAT,           "format")           \
+    _(KEYWORD_MASK,             "mask")             \
+    _(KEYWORD_MIN_LENGTH,       "minLength")        \
+    _(KEYWORD_MAX_LENGTH,       "maxLength")        \
+    _(KEYWORD_MIN,              "min")              \
+    _(KEYWORD_MAX,              "max")              \
+    _(KEYWORD_MULTIPLE_OF,      "multipleOf")
 
 #define KEYWORD_ENUM(a, b) a,
 enum { KEYWORD(KEYWORD_ENUM) NKEYWORDS, INVALID_KEYWORD };
@@ -443,6 +445,30 @@ static int eval_property(const code_t *code, schema_t *schema)
     return raise_error(schema, "required: %s", code->string);
 }
 
+static int eval_min_properties(const code_t *code, schema_t *schema)
+{
+    const json_t *object = schema->path[schema->depth - 1]; 
+
+    if (object->size >= (size_t)code->number)
+    {
+        return 1;
+    }
+    schema->node = object;
+    return raise_error(schema, "minProperties: %.0f", code->number);
+}
+
+static int eval_max_properties(const code_t *code, schema_t *schema)
+{
+    const json_t *object = schema->path[schema->depth - 1]; 
+
+    if (object->size <= (size_t)code->number)
+    {
+        return 1;
+    }
+    schema->node = object;
+    return raise_error(schema, "maxProperties: %.0f", code->number);
+}
+
 static int eval_item(const code_t *code, schema_t *schema)
 {
     const json_t *array = schema->path[schema->depth - 1];
@@ -475,6 +501,30 @@ static int eval_item(const code_t *code, schema_t *schema)
     }
     schema->node = array;
     return raise_error(schema, "minItems: %u", *index + 1);
+}
+
+static int eval_min_items(const code_t *code, schema_t *schema)
+{
+    const json_t *array = schema->path[schema->depth - 1]; 
+
+    if (array->size >= (size_t)code->number)
+    {
+        return 1;
+    }
+    schema->node = array;
+    return raise_error(schema, "minItems: %.0f", code->number);
+}
+
+static int eval_max_items(const code_t *code, schema_t *schema)
+{
+    const json_t *array = schema->path[schema->depth - 1]; 
+
+    if (array->size <= (size_t)code->number)
+    {
+        return 1;
+    }
+    schema->node = array;
+    return raise_error(schema, "maxItems: %.0f", code->number);
 }
 
 static int eval_const(const code_t *code, schema_t *schema)
@@ -700,15 +750,21 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
             return (parent == NULL) ||
                    (parent->keyword == KEYWORD_TUPLE);
         case KEYWORD_PROPERTY:
+        case KEYWORD_MIN_PROPERTIES:
+        case KEYWORD_MAX_PROPERTIES:
             return (parent != NULL) &&
                    (parent->keyword == KEYWORD_OBJECT);
         case KEYWORD_OPTIONAL:
         case KEYWORD_NULLABLE:
             return (parent != NULL) &&
                    (parent->keyword == KEYWORD_PROPERTY);
-        case KEYWORD_UNIQUE_ITEMS:
         case KEYWORD_MIN_ITEMS:
         case KEYWORD_MAX_ITEMS:
+            return parent != NULL
+                ? (parent->keyword == KEYWORD_TUPLE) ||
+                  (parent->keyword == KEYWORD_ARRAY)
+                : 0;
+        case KEYWORD_UNIQUE_ITEMS:
             return (parent != NULL) &&
                    (parent->keyword == KEYWORD_ARRAY);
         case KEYWORD_CONST:
@@ -758,6 +814,8 @@ static int expression_is_valid(const sexp_event_t *event)
             return path->type != SEXP_UNDEFINED
                     ? path->type == SEXP_STRING
                     : path->size == 0;
+        case KEYWORD_MIN_PROPERTIES:
+        case KEYWORD_MAX_PROPERTIES:
         case KEYWORD_MIN_ITEMS:
         case KEYWORD_MAX_ITEMS:
         case KEYWORD_MIN_LENGTH:
@@ -824,6 +882,18 @@ static int code_set_action(code_t *code, unsigned keyword)
         case KEYWORD_PROPERTY:
             code->action = eval_property;
             return 1;
+        case KEYWORD_MIN_PROPERTIES:
+            code->action = eval_min_properties;
+            return 1;
+        case KEYWORD_MAX_PROPERTIES:
+            code->action = eval_max_properties;
+            return 1;
+        case KEYWORD_MIN_ITEMS:
+            code->action = eval_min_items;
+            return 1;
+        case KEYWORD_MAX_ITEMS:
+            code->action = eval_max_items;
+            return 1;
         case KEYWORD_CONST:
             code->action = eval_const;
             return 1;
@@ -857,8 +927,6 @@ static int code_set_action(code_t *code, unsigned keyword)
         case KEYWORD_OPTIONAL:
         case KEYWORD_NULLABLE:
         case KEYWORD_UNIQUE_ITEMS:
-        case KEYWORD_MIN_ITEMS:
-        case KEYWORD_MAX_ITEMS:
             return 1;
         default:
             return 0;
@@ -951,7 +1019,7 @@ static int push_reduce(const sexp_event_t *event)
             {
                 return 0;
             }
-            if (path->index + 1 == frame->size - 1)
+            if (path->size == 0)
             {
                 code->flags |= FLAG_ADDITIONAL_PROPERTIES;
             }
@@ -987,6 +1055,7 @@ static int push_reduce(const sexp_event_t *event)
             {
                 code = &frame->code[path->index - 1];
                 code->jump = frame->size - path->index;
+                path[-1].size++;
             }
             break;
         case KEYWORD_OPTIONAL:
@@ -999,19 +1068,25 @@ static int push_reduce(const sexp_event_t *event)
             code->flags |= FLAG_NULLABLE;
             frame->size--;
             break;
+        case KEYWORD_MIN_ITEMS:
+            if (path[-1].keyword == KEYWORD_ARRAY)
+            {
+                code = &frame->code[path->index];
+                frame->code[path[-1].index - 1].pair[0] = (unsigned)code->number;
+                frame->size--;
+            }
+            break;
+        case KEYWORD_MAX_ITEMS:
+            if (path[-1].keyword == KEYWORD_ARRAY)
+            {
+                code = &frame->code[path->index];
+                frame->code[path[-1].index - 1].pair[1] = (unsigned)code->number;
+                frame->size--;
+            }
+            break;
         case KEYWORD_UNIQUE_ITEMS:
             code = &frame->code[path[-1].index];
             code->flags |= FLAG_UNIQUE_ITEMS;
-            frame->size--;
-            break;
-        case KEYWORD_MIN_ITEMS:
-            code = &frame->code[path->index];
-            frame->code[path[-1].index - 1].pair[0] = (unsigned)code->number;
-            frame->size--;
-            break;
-        case KEYWORD_MAX_ITEMS:
-            code = &frame->code[path->index];
-            frame->code[path[-1].index - 1].pair[1] = (unsigned)code->number;
             frame->size--;
             break;
         case KEYWORD_ENUM:
