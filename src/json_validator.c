@@ -26,6 +26,7 @@
     _(KEYWORD_NUMBER,       "number")       \
     _(KEYWORD_BOOLEAN,      "boolean")      \
     _(KEYWORD_NULL,         "null")         \
+    _(KEYWORD_ANY,          "any")          \
     _(KEYWORD_PROPERTY,     "property")     \
     _(KEYWORD_OPTIONAL,     "optional")     \
     _(KEYWORD_NULLABLE,     "nullable")     \
@@ -33,6 +34,7 @@
     _(KEYWORD_MIN_ITEMS,    "minItems")     \
     _(KEYWORD_MAX_ITEMS,    "maxItems")     \
     _(KEYWORD_CONST,        "const")        \
+    _(KEYWORD_ENUM,         "enum")         \
     _(KEYWORD_PATTERN,      "pattern")      \
     _(KEYWORD_FORMAT,       "format")       \
     _(KEYWORD_MASK,         "mask")         \
@@ -71,6 +73,7 @@ static int keyword_is_type(unsigned keyword)
         case KEYWORD_NUMBER:
         case KEYWORD_BOOLEAN:
         case KEYWORD_NULL:
+        case KEYWORD_ANY:
             return 1;
         default:
             return 0;
@@ -466,6 +469,8 @@ static int eval_item(const code_t *code, schema_t *schema)
                 return eval_boolean(code, schema);
             case KEYWORD_NULL:
                 return eval_null(code, schema);
+            case KEYWORD_ANY:
+                return 1;
         }
     }
     schema->node = array;
@@ -476,6 +481,10 @@ static int eval_const(const code_t *code, schema_t *schema)
 {
     if (schema->node->type == JSON_STRING)
     {
+        if (schema->node->string[0] == '\0')
+        {
+            return 1;
+        }
         return strcmp(schema->node->string, code->string)
             ? raise_error(schema, "const: %s", code->string)
             : 1;
@@ -487,6 +496,38 @@ static int eval_const(const code_t *code, schema_t *schema)
             : raise_error(schema, "const: %.17g", code->number);
     }
     return 1;
+}
+
+static int eval_enum(const code_t *code, schema_t *schema)
+{
+    if (schema->node->type == JSON_STRING)
+    {
+        if (schema->node->string[0] == '\0')
+        {
+            return (int)code->jump;
+        }
+        for (unsigned i = 1; i < code->jump; i++)
+        {
+            if (!strcmp(schema->node->string, code[i].string))
+            {
+                return (int)code->jump;
+            }
+        }
+        return raise_error(schema, "enum: [%s, ...]", code[1].string);
+    }
+    else
+    {
+        for (unsigned i = 1; i < code->jump; i++)
+        {
+            if (schema->node->number == code[i].number)
+            {
+                return (int)code->jump;
+            }
+        }
+        return schema->node->type == JSON_INTEGER
+            ? raise_error(schema, "enum: [%.0f, ...]", code[1].number)
+            : raise_error(schema, "enum: [%.17g, ...]", code[1].number);
+    }
 }
 
 static int eval_pattern(const code_t *code, schema_t *schema)
@@ -655,6 +696,9 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
                     return 1;
             }
             return 0;
+        case KEYWORD_ANY:
+            return (parent == NULL) ||
+                   (parent->keyword == KEYWORD_TUPLE);
         case KEYWORD_PROPERTY:
             return (parent != NULL) &&
                    (parent->keyword == KEYWORD_OBJECT);
@@ -668,6 +712,7 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
             return (parent != NULL) &&
                    (parent->keyword == KEYWORD_ARRAY);
         case KEYWORD_CONST:
+        case KEYWORD_ENUM:
             return parent != NULL
                 ? (parent->keyword == KEYWORD_STRING)  ||
                   (parent->keyword == KEYWORD_INTEGER) ||
@@ -692,6 +737,16 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
     }
 }
 
+static int scalar_is_expected(const path_t *parent, unsigned type)
+{
+    if (parent->type == SEXP_UNDEFINED)
+    {
+        return 1;
+    }
+    return (parent->keyword == KEYWORD_ENUM) &&
+           (parent->type == type);
+}
+
 static int expression_is_valid(const sexp_event_t *event)
 {
     const frame_t *frame = event->data;
@@ -710,6 +765,7 @@ static int expression_is_valid(const sexp_event_t *event)
             return (path->type == SEXP_INTEGER) &&
                    (frame->code[path->index].number >= 0);
         case KEYWORD_CONST:
+        case KEYWORD_ENUM:
             return path[-1].keyword == KEYWORD_STRING
                     ? path->type == SEXP_STRING
                     : path[-1].keyword == KEYWORD_INTEGER
@@ -762,11 +818,17 @@ static int code_set_action(code_t *code, unsigned keyword)
         case KEYWORD_NULL:
             code->action = eval_null;
             return 1;
+        case KEYWORD_ANY:
+            code->action = eval_meta;
+            return 1;
         case KEYWORD_PROPERTY:
             code->action = eval_property;
             return 1;
         case KEYWORD_CONST:
             code->action = eval_const;
+            return 1;
+        case KEYWORD_ENUM:
+            code->action = eval_enum;
             return 1;
         case KEYWORD_PATTERN:
             code->action = eval_pattern;
@@ -952,6 +1014,10 @@ static int push_reduce(const sexp_event_t *event)
             frame->code[path[-1].index - 1].pair[1] = (unsigned)code->number;
             frame->size--;
             break;
+        case KEYWORD_ENUM:
+            code = &frame->code[path->index];
+            code->jump = frame->size - path->index;
+            break;
     }
     if (event->depth == 0)
     {
@@ -964,8 +1030,8 @@ static int push_scalar(const sexp_event_t *event)
 {
     frame_t *frame = event->data;
     path_t *parent = &frame->path[event->depth - 1];
-    
-    if (parent->type != SEXP_UNDEFINED)
+  
+    if (!scalar_is_expected(parent, event->type))
     {
         event->type == SEXP_STRING
             ? log("Unexpected scalar '%s'\n", event->string)
@@ -975,6 +1041,15 @@ static int push_scalar(const sexp_event_t *event)
 
     code_t *code = &frame->code[parent->index];
 
+    if (parent->keyword == KEYWORD_ENUM)
+    {
+        code = frame_resize(frame);
+        if (code == NULL)
+        {
+            return 0;
+        }
+        code->action = eval_meta;
+    }
     if (event->type == SEXP_STRING)
     {
         code->string = event->string;
