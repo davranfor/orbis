@@ -162,6 +162,12 @@ static void test_compile_invalid(void)
 
     char bad10[] = "(object (property (string)))"; /* type before name */
     TEST(json_compile(bad10) == NULL);
+
+    char bad11[] = "(tuple (any))";              /* any no longer valid inside tuple */
+    TEST(json_compile(bad11) == NULL);
+
+    char bad12[] = "(etc)";                      /* etc at root is invalid */
+    TEST(json_compile(bad12) == NULL);
 }
 
 /* Primitive type validators */
@@ -221,6 +227,21 @@ static void test_object(void)
             free(c);
         }
     }
+
+    /* (etc): required property enforced, additional properties allowed */
+    {
+        char s[] = "(object (property \"x\" (string)) (etc))";
+        void *c = json_compile(s);
+        TEST(c != NULL);
+        if (c)
+        {
+            TEST(validate_str("{\"x\":\"hi\"}",           c) == 1); /* only defined */
+            TEST(validate_str("{\"x\":\"hi\",\"y\":1}",   c) == 1); /* extra allowed */
+            TEST(validate_str("{\"x\":42}",               c) == 0); /* wrong type */
+            TEST(validate_str("{}",                       c) == 0); /* required missing */
+            free(c);
+        }
+    }
 }
 
 /* Array of T with size bounds */
@@ -265,6 +286,21 @@ static void test_tuple(void)
             TEST(validate_str("[]",      c) == 1);
             TEST(validate_str("[1,2,3]", c) == 1);
             TEST(validate_str("{}",      c) == 0); /* not an array */
+            free(c);
+        }
+    }
+
+    /* (etc): positional types enforced, additional items allowed */
+    {
+        char s[] = "(tuple (string) (integer) (etc))";
+        void *c = json_compile(s);
+        TEST(c != NULL);
+        if (c)
+        {
+            TEST(validate_str("[\"x\",1]",          c) == 1); /* exact */
+            TEST(validate_str("[\"x\",1,true,2]",   c) == 1); /* extra allowed */
+            TEST(validate_str("[\"x\"]",             c) == 0); /* too few */
+            TEST(validate_str("[1,\"x\"]",           c) == 0); /* wrong types */
             free(c);
         }
     }
@@ -457,6 +493,65 @@ static void test_number_constraints(void)
     free(code);
 }
 
+/* (enum): exact value from a set */
+static void test_enum(void)
+{
+    /* string enum */
+    {
+        char schema[] = "(string (enum \"a\" \"b\" \"c\"))";
+        void *code = json_compile(schema);
+        TEST(code != NULL);
+        if (code)
+        {
+            TEST(validate_str("\"a\"", code) == 1); /* first value */
+            TEST(validate_str("\"c\"", code) == 1); /* last value */
+            TEST(validate_str("\"d\"", code) == 0); /* not in enum */
+            TEST(validate_str("\"\"",  code) == 1); /* empty string: bypass */
+            free(code);
+        }
+    }
+
+    /* integer enum */
+    {
+        char schema[] = "(integer (enum 1 2 3))";
+        void *code = json_compile(schema);
+        TEST(code != NULL);
+        if (code)
+        {
+            TEST(validate_str("1", code) == 1);
+            TEST(validate_str("3", code) == 1);
+            TEST(validate_str("4", code) == 0); /* not in enum */
+            free(code);
+        }
+    }
+
+    /* enum inside object property */
+    {
+        char schema[] = "(object (property \"status\" (string (enum \"ok\" \"err\"))))";
+        void *code = json_compile(schema);
+        TEST(code != NULL);
+        if (code)
+        {
+            TEST(validate_str("{\"status\":\"ok\"}",      code) == 1);
+            TEST(validate_str("{\"status\":\"err\"}",     code) == 1);
+            TEST(validate_str("{\"status\":\"pending\"}", code) == 0);
+            free(code);
+        }
+    }
+
+    /* malformed: empty enum must fail to compile */
+    {
+        char bad[] = "(string (enum))";
+        TEST(json_compile(bad) == NULL);
+    }
+
+    /* malformed: mixed types in enum must fail to compile */
+    {
+        char bad[] = "(string (enum \"a\" 1))";
+        TEST(json_compile(bad) == NULL);
+    }
+}
+
 /* Error callback — path and rule values for various failure kinds */
 static void test_callback(void)
 {
@@ -555,6 +650,7 @@ int main(void)
     test_empty_string();
     test_string_constraints();
     test_number_constraints();
+    test_enum();
     test_callback();
 
     unmute_stdout();
