@@ -32,6 +32,7 @@
     _(KEYWORD_MAX_PROPERTIES,   "maxProperties")    \
     _(KEYWORD_OPTIONAL,         "optional")         \
     _(KEYWORD_NULLABLE,         "nullable")         \
+    _(KEYWORD_ADDITIONAL,       "etc")              \
     _(KEYWORD_MIN_ITEMS,        "minItems")         \
     _(KEYWORD_MAX_ITEMS,        "maxItems")         \
     _(KEYWORD_UNIQUE_ITEMS,     "uniqueItems")      \
@@ -75,7 +76,6 @@ static int keyword_is_type(unsigned keyword)
         case KEYWORD_NUMBER:
         case KEYWORD_BOOLEAN:
         case KEYWORD_NULL:
-        case KEYWORD_ANY:
             return 1;
         default:
             return 0;
@@ -90,8 +90,8 @@ enum
 {
     FLAG_OPTIONAL = 1,
     FLAG_NULLABLE = 2,
-    FLAG_UNIQUE_ITEMS = 4,
-    FLAG_ADDITIONAL_PROPERTIES = 8
+    FLAG_ADDITIONAL = 4,
+    FLAG_UNIQUE_ITEMS = 8,
 };
 
 typedef struct
@@ -282,7 +282,7 @@ static int eval_object(const code_t *code, schema_t *schema)
 
 static int eval_object_end(const code_t *code, schema_t *schema)
 {
-    if (!(code->flags & FLAG_ADDITIONAL_PROPERTIES))
+    if (!(code->flags & FLAG_ADDITIONAL))
     {
         const json_t *object = schema->path[schema->depth - 1];
 
@@ -311,15 +311,15 @@ static int eval_tuple(const code_t *code, schema_t *schema)
 
 static int eval_tuple_end(const code_t *code, schema_t *schema)
 {
-    (void)code;
-
-    const json_t *array = schema->path[schema->depth - 1];
-    unsigned index = schema->item[schema->depth - 1];
-
-    if ((index > 0) && (array->size != index))
+    if (!(code->flags & FLAG_ADDITIONAL))
     {
-        schema->node = array;
-        return raise_error(schema, "maxItems: %u", index);
+        const json_t *array = schema->path[schema->depth - 1];
+
+        if (array->size != schema->item[schema->depth - 1])
+        {
+            schema->node = array;
+            return raise_error(schema, "additionalItems: false");
+        }
     }
     schema->node = schema->path[--schema->depth];
     return 1;
@@ -495,8 +495,6 @@ static int eval_item(const code_t *code, schema_t *schema)
                 return eval_boolean(code, schema);
             case KEYWORD_NULL:
                 return eval_null(code, schema);
-            case KEYWORD_ANY:
-                return 1;
         }
     }
     schema->node = array;
@@ -747,8 +745,7 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
             }
             return 0;
         case KEYWORD_ANY:
-            return (parent == NULL) ||
-                   (parent->keyword == KEYWORD_TUPLE);
+            return parent == NULL;
         case KEYWORD_PROPERTY:
         case KEYWORD_MIN_PROPERTIES:
         case KEYWORD_MAX_PROPERTIES:
@@ -758,6 +755,11 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
         case KEYWORD_NULLABLE:
             return (parent != NULL) &&
                    (parent->keyword == KEYWORD_PROPERTY);
+        case KEYWORD_ADDITIONAL:
+            return parent != NULL
+                ? (parent->keyword == KEYWORD_OBJECT) ||
+                  (parent->keyword == KEYWORD_TUPLE)
+                : 0;
         case KEYWORD_MIN_ITEMS:
         case KEYWORD_MAX_ITEMS:
             return parent != NULL
@@ -811,9 +813,10 @@ static int expression_is_valid(const sexp_event_t *event)
     switch (path->keyword)
     {
         case KEYWORD_PROPERTY:
-            return path->type != SEXP_UNDEFINED
-                    ? path->type == SEXP_STRING
-                    : path->size == 0;
+        case KEYWORD_PATTERN:
+        case KEYWORD_FORMAT:
+        case KEYWORD_MASK:
+            return path->type == SEXP_STRING;
         case KEYWORD_MIN_PROPERTIES:
         case KEYWORD_MAX_PROPERTIES:
         case KEYWORD_MIN_ITEMS:
@@ -829,10 +832,6 @@ static int expression_is_valid(const sexp_event_t *event)
                     : path[-1].keyword == KEYWORD_INTEGER
                         ? path->type == SEXP_INTEGER
                         : (path->type & SEXP_NUMBER) != 0;
-        case KEYWORD_PATTERN:
-        case KEYWORD_FORMAT:
-        case KEYWORD_MASK:
-            return path->type == SEXP_STRING;
         case KEYWORD_MIN:
         case KEYWORD_MAX:
             return path[-1].keyword == KEYWORD_INTEGER
@@ -926,6 +925,7 @@ static int code_set_action(code_t *code, unsigned keyword)
             return 1;
         case KEYWORD_OPTIONAL:
         case KEYWORD_NULLABLE:
+        case KEYWORD_ADDITIONAL:
         case KEYWORD_UNIQUE_ITEMS:
             return 1;
         default:
@@ -1021,7 +1021,7 @@ static int push_reduce(const sexp_event_t *event)
             }
             if (path->size == 0)
             {
-                code->flags |= FLAG_ADDITIONAL_PROPERTIES;
+                code->flags |= FLAG_ADDITIONAL;
             }
             code->flags |= frame->code[path->index].flags;
             code->action = eval_object_end;
@@ -1032,6 +1032,11 @@ static int push_reduce(const sexp_event_t *event)
             {
                 return 0;
             }
+            if (path->size == 0)
+            {
+                code->flags |= FLAG_ADDITIONAL;
+            }
+            code->flags |= frame->code[path->index].flags;
             code->action = eval_tuple_end;
             break;
         case KEYWORD_ARRAY:
@@ -1045,18 +1050,9 @@ static int push_reduce(const sexp_event_t *event)
             frame->code[path->index].jump = code->jump;
             break;
         case KEYWORD_PROPERTY:
-            if (path->type == SEXP_UNDEFINED)
-            {
-                code = &frame->code[path[-1].index];
-                code->flags |= FLAG_ADDITIONAL_PROPERTIES;
-                frame->size -= 2;
-            }
-            else
-            {
-                code = &frame->code[path->index - 1];
-                code->jump = frame->size - path->index;
-                path[-1].size++;
-            }
+            code = &frame->code[path->index - 1];
+            code->jump = frame->size - path->index;
+            path[-1].size++;
             break;
         case KEYWORD_OPTIONAL:
             code = &frame->code[path[-1].index - 1];
@@ -1066,6 +1062,11 @@ static int push_reduce(const sexp_event_t *event)
         case KEYWORD_NULLABLE:
             code = &frame->code[path[-1].index - 1];
             code->flags |= FLAG_NULLABLE;
+            frame->size--;
+            break;
+        case KEYWORD_ADDITIONAL:
+            code = &frame->code[path[-1].index];
+            code->flags |= FLAG_ADDITIONAL;
             frame->size--;
             break;
         case KEYWORD_MIN_ITEMS:

@@ -12,9 +12,9 @@
     )
     (property "email" (string (format "email")))
     (property "items" (array (integer) (minItems 3) (maxItems 3) (uniqueItems)))
-    (property "tuple" (tuple (number) (any) (null)))
+    (property "tuple" (tuple (number) (boolean) (null)))
     (property "end" (integer) (nullable))
     (property "extra" (optional))
-    (property)
+    (etc)
 )
 
