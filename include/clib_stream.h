@@ -16,6 +16,7 @@ int file_write(const char *, const char *);
 int file_write_bytes(const char *, const char *, size_t);
 int file_append(const char *, const char *);
 int file_append_bytes(const char *, const char *, size_t);
+int file_rename(const char *, const char *);
 int file_delete(const char *);
 
 #endif

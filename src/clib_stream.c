@@ -154,6 +154,11 @@ int file_append_bytes(const char *path, const char *str, size_t length)
     return write_bytes(path, str, length, O_APPEND);
 }
 
+int file_rename(const char *old_path, const char *new_path)
+{
+    return rename(old_path, new_path) == 0;
+}
+
 int file_delete(const char *path)
 {
     return unlink(path) == 0;

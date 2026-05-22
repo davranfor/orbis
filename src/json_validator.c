@@ -33,9 +33,9 @@
     _(KEYWORD_OPTIONAL,         "optional")         \
     _(KEYWORD_NULLABLE,         "nullable")         \
     _(KEYWORD_ETCETERA,         "etc")              \
+    _(KEYWORD_UNIQUE_ITEMS,     "uniqueItems")      \
     _(KEYWORD_MIN_ITEMS,        "minItems")         \
     _(KEYWORD_MAX_ITEMS,        "maxItems")         \
-    _(KEYWORD_UNIQUE_ITEMS,     "uniqueItems")      \
     _(KEYWORD_CONST,            "const")            \
     _(KEYWORD_ENUM,             "enum")             \
     _(KEYWORD_PATTERN,          "pattern")          \
@@ -760,15 +760,15 @@ static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
                 ? (parent->keyword == KEYWORD_OBJECT) ||
                   (parent->keyword == KEYWORD_TUPLE)
                 : 0;
+        case KEYWORD_UNIQUE_ITEMS:
+            return (parent != NULL) &&
+                   (parent->keyword == KEYWORD_ARRAY);
         case KEYWORD_MIN_ITEMS:
         case KEYWORD_MAX_ITEMS:
             return parent != NULL
                 ? (parent->keyword == KEYWORD_TUPLE) ||
                   (parent->keyword == KEYWORD_ARRAY)
                 : 0;
-        case KEYWORD_UNIQUE_ITEMS:
-            return (parent != NULL) &&
-                   (parent->keyword == KEYWORD_ARRAY);
         case KEYWORD_CONST:
         case KEYWORD_ENUM:
             return parent != NULL
@@ -1069,6 +1069,11 @@ static int push_reduce(const sexp_event_t *event)
             code->flags |= FLAG_ETCETERA;
             frame->size--;
             break;
+        case KEYWORD_UNIQUE_ITEMS:
+            code = &frame->code[path[-1].index];
+            code->flags |= FLAG_UNIQUE_ITEMS;
+            frame->size--;
+            break;
         case KEYWORD_MIN_ITEMS:
             if (path[-1].keyword == KEYWORD_ARRAY)
             {
@@ -1085,21 +1090,16 @@ static int push_reduce(const sexp_event_t *event)
                 frame->size--;
             }
             break;
-        case KEYWORD_UNIQUE_ITEMS:
-            code = &frame->code[path[-1].index];
-            code->flags |= FLAG_UNIQUE_ITEMS;
-            frame->size--;
-            break;
         case KEYWORD_ENUM:
             code = &frame->code[path->index];
             code->jump = frame->size - path->index;
             break;
     }
-    if (event->depth == 0)
+    if (event->depth > 0)
     {
-        return frame_resize(frame) != NULL;
+        return 1;
     }
-    return 1;
+    return frame_resize(frame) != NULL;
 }
 
 static int push_scalar(const sexp_event_t *event)
