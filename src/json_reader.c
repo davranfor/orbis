@@ -472,8 +472,8 @@ int json_walk(const json_t *node, json_walk_callback callback, void *data)
         const json_t parent =
         {
             .child = json_cast(node),
-            .size = 1,
-            .type = node->key ? JSON_OBJECT : JSON_ARRAY
+            .type = node->key ? JSON_OBJECT : JSON_ARRAY,
+            .size = 1
         };
 
         return walk(&parent, 0, callback, data);

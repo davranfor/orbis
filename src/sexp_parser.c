@@ -15,7 +15,7 @@
 
 static int parse(sexp_event_t *);
 
-static int is_boundary(int c)
+static inline int is_boundary(int c)
 {
     return (c == ')') || is_space(c);
 }

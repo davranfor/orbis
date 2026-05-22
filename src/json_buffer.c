@@ -251,14 +251,14 @@ static char *buffer_encode(buffer_t *buffer, const json_t *node, size_t indent)
     const json_t parent =
     {
         .child = json_cast(node),
-        .size = 1,
-        .type = node->key ? JSON_OBJECT : JSON_ARRAY
+        .type = node->key ? JSON_OBJECT : JSON_ARRAY,
+        .size = 1
     };
     const json_t grandparent =
     {
          .child = json_cast(&parent),
-         .size = 1,
-         .type = JSON_ARRAY
+         .type = JSON_ARRAY,
+         .size = 1
     };
 
     if (indent > MAX_INDENT)
