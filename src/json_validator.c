@@ -696,7 +696,7 @@ typedef struct
     path_t path[SEXP_MAX_DEPTH];
 } frame_t;
 
-static code_t *frame_resize(frame_t *frame)
+static code_t *code_resize(frame_t *frame)
 {
     if (frame->size == frame->room)
     {
@@ -712,6 +712,92 @@ static code_t *frame_resize(frame_t *frame)
     }
     memset(&frame->code[frame->size], 0, sizeof(code_t));
     return &frame->code[frame->size++];
+}
+
+static int code_set_action(code_t *code, unsigned keyword)
+{
+    switch (keyword)
+    {
+        case KEYWORD_OBJECT:
+            code->action = eval_object;
+            return 1;
+        case KEYWORD_TUPLE:
+            code->action = eval_tuple;
+            return 1;
+        case KEYWORD_ARRAY:
+            code->action = eval_array;
+            return 1;
+        case KEYWORD_STRING:
+            code->action = eval_string;
+            return 1;
+        case KEYWORD_INTEGER:
+            code->action = eval_integer;
+            return 1;
+        case KEYWORD_NUMBER:
+            code->action = eval_number;
+            return 1;
+        case KEYWORD_BOOLEAN:
+            code->action = eval_boolean;
+            return 1;
+        case KEYWORD_NULL:
+            code->action = eval_null;
+            return 1;
+        case KEYWORD_ANY:
+            code->action = eval_meta;
+            return 1;
+        case KEYWORD_PROPERTY:
+            code->action = eval_property;
+            return 1;
+        case KEYWORD_MIN_PROPERTIES:
+            code->action = eval_min_properties;
+            return 1;
+        case KEYWORD_MAX_PROPERTIES:
+            code->action = eval_max_properties;
+            return 1;
+        case KEYWORD_MIN_ITEMS:
+            code->action = eval_min_items;
+            return 1;
+        case KEYWORD_MAX_ITEMS:
+            code->action = eval_max_items;
+            return 1;
+        case KEYWORD_CONST:
+            code->action = eval_const;
+            return 1;
+        case KEYWORD_ENUM:
+            code->action = eval_enum;
+            return 1;
+        case KEYWORD_PATTERN:
+            code->action = eval_pattern;
+            return 1;
+        case KEYWORD_FORMAT:
+            code->action = eval_format;
+            return 1;
+        case KEYWORD_MASK:
+            code->action = eval_mask;
+            return 1;
+        case KEYWORD_MIN_LENGTH:
+            code->action = eval_min_length;
+            return 1;
+        case KEYWORD_MAX_LENGTH:
+            code->action = eval_max_length;
+            return 1;
+        case KEYWORD_MIN:
+            code->action = eval_min;
+            return 1;
+        case KEYWORD_MAX:
+            code->action = eval_max;
+            return 1;
+        case KEYWORD_MULTIPLE_OF:
+            code->action = eval_multiple_of;
+            return 1;
+        case KEYWORD_OPTIONAL:
+        case KEYWORD_NULLABLE:
+        case KEYWORD_ETCETERA:
+        case KEYWORD_UNIQUE_ITEMS:
+            return 1;
+        default:
+            return 0;
+    }
 }
 
 static int keyword_is_expected(const sexp_event_t *event, unsigned keyword)
@@ -848,92 +934,6 @@ static int expression_is_valid(const sexp_event_t *event)
     }
 }
 
-static int code_set_action(code_t *code, unsigned keyword)
-{
-    switch (keyword)
-    {
-        case KEYWORD_OBJECT:
-            code->action = eval_object;
-            return 1;
-        case KEYWORD_TUPLE:
-            code->action = eval_tuple;
-            return 1;
-        case KEYWORD_ARRAY:
-            code->action = eval_array;
-            return 1;
-        case KEYWORD_STRING:
-            code->action = eval_string;
-            return 1;
-        case KEYWORD_INTEGER:
-            code->action = eval_integer;
-            return 1;
-        case KEYWORD_NUMBER:
-            code->action = eval_number;
-            return 1;
-        case KEYWORD_BOOLEAN:
-            code->action = eval_boolean;
-            return 1;
-        case KEYWORD_NULL:
-            code->action = eval_null;
-            return 1;
-        case KEYWORD_ANY:
-            code->action = eval_meta;
-            return 1;
-        case KEYWORD_PROPERTY:
-            code->action = eval_property;
-            return 1;
-        case KEYWORD_MIN_PROPERTIES:
-            code->action = eval_min_properties;
-            return 1;
-        case KEYWORD_MAX_PROPERTIES:
-            code->action = eval_max_properties;
-            return 1;
-        case KEYWORD_MIN_ITEMS:
-            code->action = eval_min_items;
-            return 1;
-        case KEYWORD_MAX_ITEMS:
-            code->action = eval_max_items;
-            return 1;
-        case KEYWORD_CONST:
-            code->action = eval_const;
-            return 1;
-        case KEYWORD_ENUM:
-            code->action = eval_enum;
-            return 1;
-        case KEYWORD_PATTERN:
-            code->action = eval_pattern;
-            return 1;
-        case KEYWORD_FORMAT:
-            code->action = eval_format;
-            return 1;
-        case KEYWORD_MASK:
-            code->action = eval_mask;
-            return 1;
-        case KEYWORD_MIN_LENGTH:
-            code->action = eval_min_length;
-            return 1;
-        case KEYWORD_MAX_LENGTH:
-            code->action = eval_max_length;
-            return 1;
-        case KEYWORD_MIN:
-            code->action = eval_min;
-            return 1;
-        case KEYWORD_MAX:
-            code->action = eval_max;
-            return 1;
-        case KEYWORD_MULTIPLE_OF:
-            code->action = eval_multiple_of;
-            return 1;
-        case KEYWORD_OPTIONAL:
-        case KEYWORD_NULLABLE:
-        case KEYWORD_ETCETERA:
-        case KEYWORD_UNIQUE_ITEMS:
-            return 1;
-        default:
-            return 0;
-    }
-}
-
 static int push_symbol(const sexp_event_t *event)
 {
     unsigned keyword = keyword_id(event->string);
@@ -959,7 +959,7 @@ static int push_symbol(const sexp_event_t *event)
 
     code_t *code;
 
-    CHECK(code = frame_resize(frame));
+    CHECK(code = code_resize(frame));
     switch (keyword)
     {
         case KEYWORD_ARRAY:
@@ -967,12 +967,12 @@ static int push_symbol(const sexp_event_t *event)
             code->pair[0] = 0;
             code->pair[1] = -1u;
             code->action = eval_meta;
-            CHECK(code = frame_resize(frame));
+            CHECK(code = code_resize(frame));
             break;
         case KEYWORD_PROPERTY:
             path->index++;
             code->action = eval_meta;
-            CHECK(code = frame_resize(frame));
+            CHECK(code = code_resize(frame));
             break;
     }
     if (event->depth && keyword_is_type(keyword)) 
@@ -1004,7 +1004,7 @@ static int push_reduce(const sexp_event_t *event)
     switch (path->keyword)
     {
         case KEYWORD_OBJECT:
-            CHECK(code = frame_resize(frame));
+            CHECK(code = code_resize(frame));
             if (path->size == 0)
             {
                 code->flags = FLAG_ETCETERA;
@@ -1013,7 +1013,7 @@ static int push_reduce(const sexp_event_t *event)
             code->action = eval_object_end;
             break;
         case KEYWORD_TUPLE:
-            CHECK(code = frame_resize(frame));
+            CHECK(code = code_resize(frame));
             if (path->size == 0)
             {
                 code->flags = FLAG_ETCETERA;
@@ -1022,7 +1022,7 @@ static int push_reduce(const sexp_event_t *event)
             code->action = eval_tuple_end;
             break;
         case KEYWORD_ARRAY:
-            CHECK(code = frame_resize(frame));
+            CHECK(code = code_resize(frame));
             code->action = eval_array_end;
             code->jump = frame->size - path->index - 2;
             frame->code[path->index].jump = code->jump;
@@ -1077,7 +1077,7 @@ static int push_reduce(const sexp_event_t *event)
     {
         return 1;
     }
-    return frame_resize(frame) != NULL;
+    return code_resize(frame) != NULL;
 }
 
 static int push_scalar(const sexp_event_t *event)
@@ -1097,7 +1097,7 @@ static int push_scalar(const sexp_event_t *event)
 
     if (parent->keyword == KEYWORD_ENUM)
     {
-        CHECK(code = frame_resize(frame));
+        CHECK(code = code_resize(frame));
         code->action = eval_meta;
     }
     if (event->type == SEXP_STRING)
