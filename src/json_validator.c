@@ -9,6 +9,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <math.h>
+#include "clib_check.h"
 #include "clib_string.h"
 #include "clib_regex.h"
 #include "clib_match.h"
@@ -956,12 +957,9 @@ static int push_symbol(const sexp_event_t *event)
     path->type = SEXP_UNDEFINED;
     path->size = 0;
 
-    code_t *code = frame_resize(frame);
+    code_t *code;
 
-    if (code == NULL)
-    {
-        return 0;
-    }
+    CHECK(code = frame_resize(frame));
     switch (keyword)
     {
         case KEYWORD_ARRAY:
@@ -969,20 +967,12 @@ static int push_symbol(const sexp_event_t *event)
             code->pair[0] = 0;
             code->pair[1] = -1u;
             code->action = eval_meta;
-            code = frame_resize(frame);
-            if (code == NULL)
-            {
-                return 0;
-            }
+            CHECK(code = frame_resize(frame));
             break;
         case KEYWORD_PROPERTY:
             path->index++;
             code->action = eval_meta;
-            code = frame_resize(frame);
-            if (code == NULL)
-            {
-                return 0;
-            }
+            CHECK(code = frame_resize(frame));
             break;
     }
     if (event->depth && keyword_is_type(keyword)) 
@@ -1014,11 +1004,7 @@ static int push_reduce(const sexp_event_t *event)
     switch (path->keyword)
     {
         case KEYWORD_OBJECT:
-            code = frame_resize(frame);
-            if (code == NULL)
-            {
-                return 0;
-            }
+            CHECK(code = frame_resize(frame));
             if (path->size == 0)
             {
                 code->flags = FLAG_ETCETERA;
@@ -1027,11 +1013,7 @@ static int push_reduce(const sexp_event_t *event)
             code->action = eval_object_end;
             break;
         case KEYWORD_TUPLE:
-            code = frame_resize(frame);
-            if (code == NULL)
-            {
-                return 0;
-            }
+            CHECK(code = frame_resize(frame));
             if (path->size == 0)
             {
                 code->flags = FLAG_ETCETERA;
@@ -1040,11 +1022,7 @@ static int push_reduce(const sexp_event_t *event)
             code->action = eval_tuple_end;
             break;
         case KEYWORD_ARRAY:
-            code = frame_resize(frame);
-            if (code == NULL)
-            {
-                return 0;
-            }
+            CHECK(code = frame_resize(frame));
             code->action = eval_array_end;
             code->jump = frame->size - path->index - 2;
             frame->code[path->index].jump = code->jump;
@@ -1119,11 +1097,7 @@ static int push_scalar(const sexp_event_t *event)
 
     if (parent->keyword == KEYWORD_ENUM)
     {
-        code = frame_resize(frame);
-        if (code == NULL)
-        {
-            return 0;
-        }
+        CHECK(code = frame_resize(frame));
         code->action = eval_meta;
     }
     if (event->type == SEXP_STRING)
