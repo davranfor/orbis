@@ -13,3 +13,11 @@ sudo ldconfig
 cd examples/whatever
 CFLAGS="-std=c11 -Wpedantic -Wall -Wextra -O2" LDLIBS="-lorbis" make demo && ./demo
 ```
+
+## Unit tests
+```
+cd tests
+make
+make run
+```
+

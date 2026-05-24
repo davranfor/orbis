@@ -16,7 +16,6 @@ json_t *json_search(const json_t *node, const void *key,
     {
         return NULL;
     }
-
     return bsearch(key, node->child, node->size, sizeof *node->child, callback);
 }
 
