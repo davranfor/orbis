@@ -8,7 +8,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <math.h>
 #include "clib_math.h"
 #include "clib_unicode.h"
 #include "json_parser.h"
@@ -175,7 +174,7 @@ static int parse_number(json_event_t *event)
 
     double number = strtod(event->iter, &end);
 
-    if ((errno == ERANGE) || isnan(number) || isinf(number))
+    if ((event->iter == end) || (errno == ERANGE))
     {
         return 0;
     }

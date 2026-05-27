@@ -8,7 +8,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <math.h>
 #include "clib_math.h"
 #include "clib_unicode.h"
 #include "sexp_parser.h"
@@ -146,7 +145,7 @@ static int parse_number(sexp_event_t *event)
 
     double number = strtod(event->iter, &end);
 
-    if ((errno == ERANGE) || isnan(number) || isinf(number) || !is_boundary(*end))
+    if ((event->iter == end) || (errno == ERANGE))
     {
         return 0;
     }
