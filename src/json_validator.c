@@ -191,15 +191,13 @@ static void write_path(const schema_t *schema, char *str, size_t size)
         path += bytes;
         size -= bytes;
     }
-    if ((schema->depth > 0) && (schema->item[schema->depth - 1] > 0))
+    if (schema->depth > 0)
     {
         const json_t *parent = schema->path[schema->depth - 1];
-        unsigned index = schema->item[schema->depth - 1] - 1;
+        const json_t *child = schema->node;
 
-        if ((schema->node != parent) && (index < parent->size))
+        if (parent != child)
         {
-            const json_t *child = &parent->child[index];
-
             length += write_node(parent, child, path, size);
             if (length > max_length)
             {
