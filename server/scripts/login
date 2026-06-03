@@ -1,0 +1,18 @@
+#!/bin/bash
+
+set -e
+
+email="$1"
+[[ -z "$email" ]] && { echo "Usage: $0 <email>"; exit 1; }
+
+read -s -p "Password: " password
+echo
+
+source "$(dirname -- "${BASH_SOURCE[0]}")/.env"
+
+payload=$(printf '{"email": "%s", "password": "%s"}' "$email" "$password")
+
+curl -i -c "$COOKIES_DIR/cookies" "http://$HOST/api/login" \
+     -H "Content-Type: application/json" \
+     -d "$payload" -w "\n"
+

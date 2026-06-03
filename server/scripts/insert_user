@@ -1,0 +1,8 @@
+#!/bin/bash
+
+source "$(dirname -- "${BASH_SOURCE[0]}")/.env"
+
+curl -i -c "$COOKIES_DIR/cookies" -b "$COOKIES_DIR/cookies" -X POST "http://$HOST/api/users" \
+     -H "Content-Type: application/json" \
+     -d '{"id": 2, "role": 2, "name": "Elena", "email": "elena@mail.com", "password": "12345678"}' -w "\n"
+

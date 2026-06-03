@@ -1,0 +1,6 @@
+#!/bin/bash
+
+source "$(dirname -- "${BASH_SOURCE[0]}")/.env"
+
+curl -i -c "$COOKIES_DIR/cookies" -b "$COOKIES_DIR/cookies" "http://$HOST/api/users?id=1" -w "\n"
+

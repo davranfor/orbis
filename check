@@ -1,0 +1,14 @@
+#!/bin/bash
+
+echo "Checking with cppcheck ..."
+cppcheck --language=c --std=c11 --enable=all --check-level=exhaustive --inline-suppr \
+    --suppress=checkersReport \
+    --suppress=missingIncludeSystem \
+    --suppress=constParameterCallback \
+    -Iinclude -itests .
+
+echo
+
+echo "Checking with clang ..."
+clang --analyze -Xanalyzer -analyzer-output=text -Iinclude src/*.c
+

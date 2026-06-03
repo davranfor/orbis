@@ -1,0 +1,8 @@
+#!/bin/bash
+
+source "$(dirname -- "${BASH_SOURCE[0]}")/.env"
+
+curl -i -c "$COOKIES_DIR/cookies" -b "$COOKIES_DIR/cookies" -X PATCH "http://$HOST/api/users?id=2" \
+     -H "Content-Type: application/json" \
+     -d '{"role": 2, "name": "Elena", "email": "elena@mail.com"}' -w "\n"
+

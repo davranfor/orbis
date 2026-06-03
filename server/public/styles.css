@@ -1,0 +1,189 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: system-ui, sans-serif;
+    font-size: 15px;
+    background: #f0f2f5;
+    color: #222;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── header ─────────────────────────────────────────── */
+
+header {
+    background: #2255aa;
+    color: #fff;
+    padding: 0 1.5rem;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+}
+
+header img   { height: 28px; }
+header h1    { font-size: 1.1rem; font-weight: 600; flex: 1; }
+header button {
+    background: rgba(255,255,255,.15);
+    border: 1px solid rgba(255,255,255,.3);
+    color: #fff;
+    padding: .35rem .9rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+header button:hover { background: rgba(255,255,255,.25); }
+
+/* ── main ────────────────────────────────────────────── */
+
+main {
+    flex: 1;
+    padding: 2rem 1.5rem;
+    max-width: 860px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* ── login ───────────────────────────────────────────── */
+
+#view-login {
+    max-width: 360px;
+    margin: 4rem auto;
+    background: #fff;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,.1);
+}
+
+#view-login h2 {
+    margin-bottom: 1.25rem;
+    font-size: 1.2rem;
+    color: #2255aa;
+}
+
+/* ── users ───────────────────────────────────────────── */
+
+#view-users h2 {
+    margin-bottom: 1.25rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+/* ── forms ───────────────────────────────────────────── */
+
+.form-row {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+    margin-bottom: .85rem;
+}
+
+.form-row label { font-size: .85rem; color: #555; }
+
+.form-row input,
+.form-row select {
+    padding: .45rem .6rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: .95rem;
+    background: #fafafa;
+}
+
+.form-row input:focus,
+.form-row select:focus {
+    outline: none;
+    border-color: #2255aa;
+    background: #fff;
+}
+
+/* ── buttons ─────────────────────────────────────────── */
+
+.btn {
+    display: inline-block;
+    padding: .45rem 1.1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: .9rem;
+    font-weight: 500;
+}
+
+.btn-primary { background: #2255aa; color: #fff; }
+.btn-primary:hover { background: #1a4488; }
+
+.btn-success { background: #28a745; color: #fff; }
+.btn-success:hover { background: #1e8035; }
+
+.btn-warning { background: #e07b00; color: #fff; font-size: .82rem; padding: .3rem .7rem; }
+.btn-warning:hover { background: #b86500; }
+
+.btn-danger  { background: #cc3333; color: #fff; font-size: .82rem; padding: .3rem .7rem; }
+.btn-danger:hover  { background: #aa2222; }
+
+.btn-block { width: 100%; margin-top: .5rem; }
+
+/* ── table ───────────────────────────────────────────── */
+
+.table-wrap {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    overflow: auto;
+    margin-bottom: 1.5rem;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .93rem;
+}
+
+thead th {
+    background: #2255aa;
+    color: #fff;
+    padding: .6rem .9rem;
+    text-align: left;
+    font-weight: 500;
+}
+
+tbody tr:nth-child(even) { background: #f7f9fc; }
+tbody tr:hover           { background: #eef2fb; }
+
+td { padding: .55rem .9rem; }
+
+td:last-child { white-space: nowrap; display: flex; gap: .4rem; }
+
+/* ── add/edit panel ──────────────────────────────────── */
+
+.panel {
+    background: #fff;
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    margin-bottom: 1rem;
+}
+
+.panel h3 { font-size: .95rem; margin-bottom: 1rem; color: #2255aa; }
+
+.panel-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 1rem;
+}
+
+/* ── messages ────────────────────────────────────────── */
+
+.msg {
+    padding: .5rem .8rem;
+    border-radius: 4px;
+    margin-bottom: .75rem;
+    font-size: .88rem;
+    display: none;
+}
+
+.msg.error   { background: #fde; color: #900; border: 1px solid #f99; display: block; }
+.msg.success { background: #dfd; color: #363; border: 1px solid #9d9; display: block; }
+
+/* ── utilities ───────────────────────────────────────── */
+
+.hidden { display: none !important; }

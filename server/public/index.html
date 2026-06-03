@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orbis</title>
+    <link rel="icon" href="favicon.ico">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+    <img src="logo.png" alt="Orbis">
+    <h1>Orbis</h1>
+    <button id="btn-logout" class="hidden" onclick="logout()">Logout</button>
+</header>
+
+<main>
+
+    <!-- Login -->
+    <section id="view-login">
+        <h2>Sign in</h2>
+        <div id="login-msg" class="msg"></div>
+        <div class="form-row">
+            <label for="login-email">Email</label>
+            <input id="login-email" type="email" placeholder="user@example.com" autocomplete="username">
+        </div>
+        <div class="form-row">
+            <label for="login-password">Password</label>
+            <input id="login-password" type="password" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button class="btn btn-primary btn-block" onclick="login()">Sign in</button>
+    </section>
+
+    <!-- Users -->
+    <section id="view-users" class="hidden">
+
+        <h2>Users</h2>
+
+        <!-- Table -->
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="users-tbody"></tbody>
+            </table>
+        </div>
+
+        <!-- Add user -->
+        <div class="panel">
+            <h3>Add user</h3>
+            <div id="add-msg" class="msg"></div>
+            <div class="panel-row">
+                <div class="form-row">
+                    <label for="add-id">ID</label>
+                    <input id="add-id" type="number" min="1" max="999999" placeholder="1">
+                </div>
+                <div class="form-row">
+                    <label for="add-role">Role</label>
+                    <select id="add-role">
+                        <option value="1">1 — Admin</option>
+                        <option value="2">2 — Editor</option>
+                        <option value="3" selected>3 — Viewer</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label for="add-name">Name</label>
+                    <input id="add-name" type="text" placeholder="Alice">
+                </div>
+                <div class="form-row">
+                    <label for="add-email">Email</label>
+                    <input id="add-email" type="email" placeholder="alice@example.com">
+                </div>
+                <div class="form-row">
+                    <label for="add-password">Password</label>
+                    <input id="add-password" type="text" placeholder="min 8 chars">
+                </div>
+            </div>
+            <button class="btn btn-success" onclick="createUser()">Add user</button>
+        </div>
+
+        <!-- Edit user (hidden until row Edit is clicked) -->
+        <div id="edit-panel" class="panel hidden">
+            <h3>Edit user <span id="edit-id-label"></span></h3>
+            <div id="edit-msg" class="msg"></div>
+            <input id="edit-id" type="hidden">
+            <div class="panel-row">
+                <div class="form-row">
+                    <label for="edit-role">Role</label>
+                    <select id="edit-role">
+                        <option value="1">1 — Admin</option>
+                        <option value="2">2 — Editor</option>
+                        <option value="3">3 — Viewer</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label for="edit-name">Name</label>
+                    <input id="edit-name" type="text">
+                </div>
+                <div class="form-row">
+                    <label for="edit-email">Email</label>
+                    <input id="edit-email" type="email">
+                </div>
+            </div>
+            <button class="btn btn-warning" onclick="updateUser()">Save</button>
+            <button class="btn" onclick="closeEdit()" style="margin-left:.5rem">Cancel</button>
+        </div>
+
+    </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
