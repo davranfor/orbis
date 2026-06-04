@@ -5,7 +5,7 @@ cppcheck --language=c --std=c11 --enable=all --check-level=exhaustive --inline-s
     --suppress=checkersReport \
     --suppress=missingIncludeSystem \
     --suppress=constParameterCallback \
-    -Iinclude -itests .
+    -Iinclude -Iserver/include -itests .
 
 echo
 
