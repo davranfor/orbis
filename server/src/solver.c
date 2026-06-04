@@ -234,33 +234,33 @@ static int bind_params(sqlite3_stmt *stmt, const json_t *params)
 
 static int bind_child(sqlite3_stmt *stmt, int index, const json_t *child)
 {
-    int status;
+    int rc;
 
     switch (child->type)
     {
         case JSON_STRING:
-            status = sqlite3_bind_text(stmt, index, child->string, -1, SQLITE_STATIC);
+            rc = sqlite3_bind_text(stmt, index, child->string, -1, SQLITE_STATIC);
             break;
         case JSON_INTEGER:
-            status = sqlite3_bind_int64(stmt, index, (int64_t)child->number);
+            rc = sqlite3_bind_int64(stmt, index, (int64_t)child->number);
             break;
         case JSON_REAL:
-            status = sqlite3_bind_double(stmt, index, child->number);
+            rc = sqlite3_bind_double(stmt, index, child->number);
             break;
         case JSON_TRUE:
-            status = sqlite3_bind_int(stmt, index, 1);
+            rc = sqlite3_bind_int(stmt, index, 1);
             break;
         case JSON_FALSE:
-            status = sqlite3_bind_int(stmt, index, 0);
+            rc = sqlite3_bind_int(stmt, index, 0);
             break;
         case JSON_NULL:
-            status = sqlite3_bind_null(stmt, index);
+            rc = sqlite3_bind_null(stmt, index);
             break;
         default:
-            status = SQLITE_ERROR;
+            rc = SQLITE_ERROR;
             break;
     }
-    return status == SQLITE_OK;
+    return rc == SQLITE_OK;
 }
 
 static int bind_content_as_object(sqlite3_stmt *stmt, const json_t *content)
@@ -574,11 +574,8 @@ static const buffer_t *solve_request(const json_t *request, int status)
         case HTTP_OK:
             write_headers(HEADER_NO_STORE, "application/json");
             break;
-        case HTTP_NO_CONTENT:
-            write_headers_no_content(HEADER_NO_CONTENT);
-            break;
-        case HTTP_UNAUTHORIZED:
-            write_headers(HEADER_UNAUTHORIZED, "text/plain");
+        case HTTP_BAD_REQUEST:
+            write_headers(HEADER_BAD_REQUEST, "text/plain");
             break;
         case HTTP_FORBIDDEN:
             write_headers(HEADER_FORBIDDEN, "text/plain");
@@ -590,7 +587,7 @@ static const buffer_t *solve_request(const json_t *request, int status)
             write_headers(HEADER_SERVER_ERROR, "text/plain");
             break;
         default:
-            write_headers(HEADER_BAD_REQUEST, "text/plain");
+            write_headers_no_content(HEADER_NO_CONTENT);
             break;
     }
     buffer_insert(&buffer, 0, headers, strlen(headers));
