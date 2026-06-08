@@ -362,7 +362,6 @@ static int bind_session(sqlite3_stmt *stmt, const json_t *session)
 
 static int handle_stmt(const json_t *request, const char *sql)
 {
-    int total_changes = sqlite3_total_changes(db);
     int in_transaction = strncmp(json_find(request, "path")->string, "GET", 3);
 
     if (in_transaction)
@@ -406,23 +405,9 @@ static int handle_stmt(const json_t *request, const char *sql)
     }
     if (buffer.length == 0)
     {
-        int changes = sqlite3_total_changes(db) - total_changes;
-
-        if (changes > 0)
-        {
-            buffer_write(&buffer, "[]");
-            return HTTP_OK;
-        }
-        else
-        {
-            buffer_write(&buffer, "Not Found");
-            return HTTP_NOT_FOUND;
-        }
+        buffer_write(&buffer, "null");
     }
-    else
-    {
-        return HTTP_OK;
-    }
+    return HTTP_OK;
 bad_request:
     buffer_reset(&buffer);
     buffer_write(&buffer, sqlite3_errmsg(db));
@@ -563,9 +548,9 @@ static const buffer_t *solve_request(const json_t *request, int status)
     snprintf(headers, sizeof headers, response "%s" \
         "Content-Type: %s\r\n" \
         "Content-Length: %zu\r\n\r\n", \
-        cookie, content_type, buffer.length);
+        cookie, content_type, buffer.length)
 #define write_headers_no_content(response) \
-    snprintf(headers, sizeof headers, response "%s\r\n", cookie);
+    snprintf(headers, sizeof headers, response "%s\r\n", cookie)
  
     char headers[1024];
 
