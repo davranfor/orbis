@@ -46,8 +46,7 @@ int rand_password(char *password, size_t size)
 
     const char charset[] = "abcdefghijklmnopqrstuvwxyz"
                            "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                           "0123456789"
-                           "!@#$%^&*()-_=+[]{}|;:,.<>?";
+                           "0123456789";
 
     for (size_t i = 0; i < size; i++)
     {
