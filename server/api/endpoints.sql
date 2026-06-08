@@ -158,6 +158,23 @@ DELETE /api/users
 DELETE FROM users WHERE id = @id;    
 
 -- @path
+POST /api/exec
+-- @eval
+(object
+  (property "path")
+  (property "params" (null))
+  (property "content" (string (minLength 1) (maxLength 4096)))
+  (property "session"
+    (object
+      (property "role" (integer (const 1)))
+      (etc)
+    )
+  )
+)
+-- @stmt
+none
+
+-- @path
 POST /api/backup
 -- @eval
 (object

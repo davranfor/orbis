@@ -1,0 +1,14 @@
+#!/bin/bash
+
+source "$(dirname -- "${BASH_SOURCE[0]}")/.env"
+
+payload=$(cat << 'EOF'
+SELECT group_concat(json_array(id, name, email), char(10))
+FROM users;
+EOF
+)
+
+curl -i -c "$COOKIES_DIR/cookies" -b "$COOKIES_DIR/cookies" "http://$HOST/api/exec" \
+     -H "Content-Type: application/sql" \
+     -d "$payload" -w "\n"
+
