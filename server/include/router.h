@@ -7,6 +7,8 @@
 #ifndef ROUTER_H
 #define ROUTER_H
 
+enum { GET = 1, POST, PUT, PATCH, DELETE };
+
 typedef struct
 {
     char *path;
@@ -15,7 +17,7 @@ typedef struct
     int index;
 } endpoint_t;
 
-int is_routable(const char *);
+int router_method(const char *);
 void router_load(void);
 void router_reload(void);
 const endpoint_t *router_search(char *, int);

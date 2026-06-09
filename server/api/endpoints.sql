@@ -81,7 +81,7 @@ GET /api/users
   )
 )
 -- @stmt
-SELECT json_group_array(json_array(id, name, email)) FROM users WHERE id = @id;
+SELECT json_array(id, name, email) FROM users WHERE id = @id;
 
 -- @path
 POST /api/users

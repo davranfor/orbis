@@ -100,7 +100,7 @@ async function loadUsers() {
             '<tr><td colspan="4">Failed to load users.</td></tr>';
         return;
     }
-    renderUsers(JSON.parse(r.body));
+    renderUsers(JSON.parse(r.body) || []);
 }
 
 /* ── create user ─────────────────────────────────────── */
@@ -216,6 +216,6 @@ document.addEventListener("keydown", e => {
         hide("view-login");
         show("view-users");
         show("btn-logout");
-        renderUsers(JSON.parse(r.body));
+        renderUsers(JSON.parse(r.body) || []);
     }
 }());

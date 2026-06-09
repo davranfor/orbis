@@ -23,6 +23,15 @@
 #include "static.h"
 #include "solver.h"
 
+enum
+{
+    HTTP_OK = 200,
+    HTTP_CREATED = 201,
+    HTTP_BAD_REQUEST = 400,
+    HTTP_FORBIDDEN = 403,
+    HTTP_NOT_FOUND = 404,
+};
+
 static sqlite3 *db;
 static buffer_t buffer;
 static const char *session_sql;
@@ -363,9 +372,9 @@ static int bind_session(sqlite3_stmt *stmt, const json_t *session)
 static int handle_stmt(const json_t *request, const char *sql)
 {
     int total_changes = sqlite3_total_changes(db);
-    int in_transaction = strncmp(json_find(request, "path")->string, "GET", 3);
+    int method = router_method(json_find(request, "path")->string);
 
-    if (in_transaction)
+    if (method != GET)
     {
         db_exec("BEGIN TRANSACTION;");
     }
@@ -379,7 +388,7 @@ static int handle_stmt(const json_t *request, const char *sql)
             !bind_content(stmt, json_find(request, "content")) ||
             !bind_session(stmt, json_find(request, "session")))
         {
-            goto bad_request;
+            goto error;
         }
 
         int step;
@@ -395,38 +404,34 @@ static int handle_stmt(const json_t *request, const char *sql)
         }
         if (step != SQLITE_DONE)
         {
-            goto bad_request;
+            goto error;
         }
         sqlite3_finalize(stmt);
         stmt = NULL;
     }
-    if (in_transaction)
+    if (method != GET)
     {
         db_exec("COMMIT;");
     }
     if (buffer.length == 0)
     {
-        int changes = sqlite3_total_changes(db) - total_changes;
-
-        if (changes > 0)
+        if (method == GET)
         {
-            buffer_write(&buffer, "[]");
+            buffer_write(&buffer, "null");
             return HTTP_OK;
         }
-        else
+        if (sqlite3_total_changes(db) - total_changes == 0)
         {
-            return HTTP_NO_CONTENT;
+            buffer_write(&buffer, "Not Found");
+            return HTTP_NOT_FOUND;
         }
     }
-    else
-    {
-        return HTTP_OK;
-    }
-bad_request:
+    return method == POST ? HTTP_CREATED : HTTP_OK;
+error:
     buffer_write(&buffer, sqlite3_errmsg(db));
     fprintf(stderr, "%s\n", sqlite3_errmsg(db));
     sqlite3_finalize(stmt);
-    if (in_transaction)
+    if (method != GET)
     {
         db_exec("ROLLBACK;");
     }
@@ -447,22 +452,22 @@ static int handle_task(const json_t *request)
     {
         file_delete("storage/backup.db");
         db_exec("VACUUM INTO 'storage/backup.db';");
-        return HTTP_NO_CONTENT;
+        return HTTP_OK;
     }
     if (!strcmp(path, "POST /api/vacuum"))
     {
         db_exec("VACUUM;");
-        return HTTP_NO_CONTENT;
+        return HTTP_OK;
     }
     if (!strcmp(path, "POST /api/reload"))
     {
         loader_reload();
-        return HTTP_NO_CONTENT;
+        return HTTP_OK;
     }
     if (!strcmp(path, "POST /api/stop"))
     {
         raise(SIGINT);
-        return HTTP_NO_CONTENT;
+        return HTTP_OK;
     }
     buffer_write(&buffer, "Bad Request");
     return HTTP_BAD_REQUEST;
@@ -571,22 +576,23 @@ static const buffer_t *solve_request(const json_t *request, int status)
     switch (status)
     {
         case HTTP_OK:
-            write_headers(HEADER_NO_STORE, "application/json");
+            buffer.length > 0
+                ? write_headers(HEADER_OK, "application/json")
+                : write_headers_no_content(HEADER_NO_CONTENT);
+            break;
+        case HTTP_CREATED:
+            buffer.length > 0
+                ? write_headers(HEADER_CREATED, "application/json")
+                : write_headers_no_content(HEADER_NO_CONTENT);
             break;
         case HTTP_BAD_REQUEST:
             write_headers(HEADER_BAD_REQUEST, "text/plain");
             break;
         case HTTP_FORBIDDEN:
-            write_headers(HEADER_FORBIDDEN, "text/plain");
+            write_headers(HEADER_FORBIDDEN, "application/json");
             break;
         case HTTP_NOT_FOUND:
             write_headers(HEADER_NOT_FOUND, "text/plain");
-            break;
-        case HTTP_SERVER_ERROR:
-            write_headers(HEADER_SERVER_ERROR, "text/plain");
-            break;
-        default:
-            write_headers_no_content(HEADER_NO_CONTENT);
             break;
     }
     buffer_insert(&buffer, 0, headers, strlen(headers));

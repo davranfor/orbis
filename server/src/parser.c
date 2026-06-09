@@ -71,7 +71,7 @@ static const buffer_t *parse_headers(request_t *request, char *str)
         }
         request->content = content;
     }
-    if (is_routable(str))
+    if (router_method(str) != 0)
     {
         char *end = strchr(strchr(str, ' ') + 1, ' ');
 

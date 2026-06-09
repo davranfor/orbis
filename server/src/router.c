@@ -47,18 +47,18 @@ static endpoint_t *endpoint_resize(void)
     return &router.endpoint[router.size++];
 }
 
-int is_routable(const char *str)
+int router_method(const char *str)
 {
     static const char *methods[] =
     {
-        "GET /api/", "POST /api/", "PATCH /api/", "DELETE /api/"
+        "GET /api/", "POST /api/", "PUT /api/", "PATCH /api/", "DELETE /api/"
     };
 
-    for (size_t i = 0; i < sizeof methods / sizeof methods[0]; i++)
+    for (int i = 0; i < (int)(sizeof methods / sizeof methods[0]); i++)
     {
         if (!strncmp(str, methods[i], strlen(methods[i])))
         {
-            return 1;
+            return i + 1;
         }
     }
     return 0;
@@ -105,7 +105,7 @@ static int set_section(unsigned sections, unsigned section, char *str)
         case PATH:
         {
             printf("- %s\n", str);
-            if (!is_routable(str))
+            if (router_method(str) == 0)
             {
                 fprintf(stderr, "METHOD /api/... was expected\n");
                 return 0;
