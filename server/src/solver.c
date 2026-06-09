@@ -362,6 +362,7 @@ static int bind_session(sqlite3_stmt *stmt, const json_t *session)
 
 static int handle_stmt(const json_t *request, const char *sql)
 {
+    int total_changes = sqlite3_total_changes(db);
     int in_transaction = strncmp(json_find(request, "path")->string, "GET", 3);
 
     if (in_transaction)
@@ -405,11 +406,23 @@ static int handle_stmt(const json_t *request, const char *sql)
     }
     if (buffer.length == 0)
     {
-        buffer_write(&buffer, "null");
+        int changes = sqlite3_total_changes(db) - total_changes;
+
+        if (changes > 0)
+        {
+            buffer_write(&buffer, "[]");
+            return HTTP_OK;
+        }
+        else
+        {
+            return HTTP_NO_CONTENT;
+        }
     }
-    return HTTP_OK;
+    else
+    {
+        return HTTP_OK;
+    }
 bad_request:
-    buffer_reset(&buffer);
     buffer_write(&buffer, sqlite3_errmsg(db));
     fprintf(stderr, "%s\n", sqlite3_errmsg(db));
     sqlite3_finalize(stmt);
@@ -465,11 +478,12 @@ typedef struct
 
 static void on_validate_request(const json_t *node, void *data)
 {
+    const char *path = json_text(json_pointer(node, "/path"));
     context_t *context = data;
 
-    if (strncmp("/params", json_text(json_pointer(node, "/path")), 7))
+    if (strncmp(path, "/params", 7))
     {
-        if (!strncmp("/session", json_text(json_pointer(node, "/path")), 8))
+        if (!strncmp(path, "/session", 8))
         {
             *context->status = HTTP_FORBIDDEN;
         }
