@@ -432,12 +432,7 @@ static int handle_stmt(const json_t *request, const char *sql)
     }
     if (buffer.length == 0)
     {
-        if (method == GET)
-        {
-            buffer_write(&buffer, "null");
-            return HTTP_OK;
-        }
-        if (sqlite3_total_changes(db) - total_changes == 0)
+        if ((method == GET) || (sqlite3_total_changes(db) - total_changes == 0))
         {
             write_error("Not Found");
             return HTTP_NOT_FOUND;
