@@ -122,7 +122,7 @@ async function createUser() {
     const r = await api("POST", "/api/users", { id, role, name, email, password });
 
     if (!r.ok) {
-        setMsg("add-msg", r.body || "Error creating user.", "error");
+        setMsg("add-msg", JSON.parse(r.body)?.error || "Error creating user.", "error");
         return;
     }
 
@@ -163,7 +163,7 @@ async function updateUser() {
     const r = await api("PATCH", "/api/users?id=" + id, { role, name, email });
 
     if (!r.ok) {
-        setMsg("edit-msg", r.body || "Error updating user.", "error");
+        setMsg("edit-msg", JSON.parse(r.body)?.error || "Error updating user.", "error");
         return;
     }
 
@@ -179,7 +179,7 @@ async function deleteUser(id) {
     const r = await api("DELETE", "/api/users?id=" + id);
 
     if (!r.ok) {
-        alert("Error: " + r.body);
+        alert("Error: " + (JSON.parse(r.body)?.error || r.body));
         return;
     }
     loadUsers();
