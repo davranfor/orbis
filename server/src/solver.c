@@ -441,6 +441,7 @@ static int handle_stmt(const json_t *request, const char *sql)
     return method == POST ? HTTP_CREATED : HTTP_OK;
 error:
     fprintf(stderr, "%s\n", sqlite3_errmsg(db));
+    buffer_reset(&buffer);
     write_error(sqlite3_errmsg(db));
     sqlite3_finalize(stmt);
     if (method != GET)
