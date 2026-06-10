@@ -16,15 +16,15 @@ static buffer_t server_error;
 
 #define load_buffer(buffer, method, content) \
     buffer_format(buffer, method \
-        "Content-Type: text/plain\r\n" \
+        "Content-Type: application/json\r\n" \
         "Content-Length: %zu\r\n\r\n%s", \
         strlen(content), content)
 
 static void load(void)
 {
-    if (!load_buffer(&bad_request, HEADER_BAD_REQUEST, "Bad Request") ||
-        !load_buffer(&unauthorized, HEADER_UNAUTHORIZED, "Unauthorized") ||
-        !load_buffer(&server_error, HEADER_SERVER_ERROR, "Internal Server Error"))
+    if (!load_buffer(&bad_request,  HEADER_BAD_REQUEST,  "{\"error\": \"Bad Request\"}") ||
+        !load_buffer(&unauthorized, HEADER_UNAUTHORIZED, "{\"error\": \"Unauthorized\"}") ||
+        !load_buffer(&server_error, HEADER_SERVER_ERROR, "{\"error\": \"Internal Server Error\"}"))
     {
         perror("load_buffer");
         exit(EXIT_FAILURE);

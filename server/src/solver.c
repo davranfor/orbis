@@ -32,6 +32,8 @@ enum
     HTTP_NOT_FOUND = 404,
 };
 
+enum { GET = 1, POST, PUT, PATCH, DELETE };
+
 static sqlite3 *db;
 static buffer_t buffer;
 static const char *session_sql;
@@ -175,6 +177,21 @@ void solver_reload(void)
 {
     unload();
     load();
+}
+
+static void write_error(const char *error)
+{
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
+    const json_t message =
+    {
+        .key = "error",
+        .string = (char *)error,
+        .type = JSON_STRING
+    };
+#pragma GCC diagnostic pop
+
+    json_buffer_encode(&buffer, &message, 2);
 }
 
 static int verify_request(const json_t *request)
@@ -422,14 +439,14 @@ static int handle_stmt(const json_t *request, const char *sql)
         }
         if (sqlite3_total_changes(db) - total_changes == 0)
         {
-            buffer_write(&buffer, "Not Found");
+            write_error("Not Found");
             return HTTP_NOT_FOUND;
         }
     }
     return method == POST ? HTTP_CREATED : HTTP_OK;
 error:
-    buffer_write(&buffer, sqlite3_errmsg(db));
     fprintf(stderr, "%s\n", sqlite3_errmsg(db));
+    write_error(sqlite3_errmsg(db));
     sqlite3_finalize(stmt);
     if (method != GET)
     {
@@ -513,7 +530,7 @@ static const endpoint_t *validate_request(const json_t *request, int *status)
     if (endpoint == NULL)
     {
         fprintf(stderr, "Not a valid endpoint\n");
-        buffer_write(&buffer, "Not Found");
+        write_error("Not Found");
         *status = HTTP_NOT_FOUND;
         return NULL;
     }
@@ -563,11 +580,11 @@ static const buffer_t *solve_request(const json_t *request, int status)
 #endif
     }
 
-#define write_headers(response, content_type) \
+#define write_headers(response) \
     snprintf(headers, sizeof headers, response "%s" \
-        "Content-Type: %s\r\n" \
+        "Content-Type: application/json\r\n" \
         "Content-Length: %zu\r\n\r\n", \
-        cookie, content_type, buffer.length)
+        cookie, buffer.length)
 #define write_headers_no_content(response) \
     snprintf(headers, sizeof headers, response "%s\r\n", cookie)
  
@@ -577,22 +594,22 @@ static const buffer_t *solve_request(const json_t *request, int status)
     {
         case HTTP_OK:
             buffer.length > 0
-                ? write_headers(HEADER_OK, "application/json")
+                ? write_headers(HEADER_OK)
                 : write_headers_no_content(HEADER_NO_CONTENT);
             break;
         case HTTP_CREATED:
             buffer.length > 0
-                ? write_headers(HEADER_CREATED, "application/json")
+                ? write_headers(HEADER_CREATED)
                 : write_headers_no_content(HEADER_NO_CONTENT);
             break;
         case HTTP_BAD_REQUEST:
-            write_headers(HEADER_BAD_REQUEST, "text/plain");
+            write_headers(HEADER_BAD_REQUEST);
             break;
         case HTTP_FORBIDDEN:
-            write_headers(HEADER_FORBIDDEN, "application/json");
+            write_headers(HEADER_FORBIDDEN);
             break;
         case HTTP_NOT_FOUND:
-            write_headers(HEADER_NOT_FOUND, "text/plain");
+            write_headers(HEADER_NOT_FOUND);
             break;
     }
     buffer_insert(&buffer, 0, headers, strlen(headers));

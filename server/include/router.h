@@ -7,8 +7,6 @@
 #ifndef ROUTER_H
 #define ROUTER_H
 
-enum { GET = 1, POST, PUT, PATCH, DELETE };
-
 typedef struct
 {
     char *path;
