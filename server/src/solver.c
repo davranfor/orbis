@@ -30,6 +30,7 @@ enum
     HTTP_BAD_REQUEST = 400,
     HTTP_FORBIDDEN = 403,
     HTTP_NOT_FOUND = 404,
+    HTTP_SERVER_ERROR = 500,
 };
 
 enum { GET = 1, POST, PUT, PATCH, DELETE };
@@ -397,6 +398,7 @@ static int handle_stmt(const json_t *request, const char *sql)
     }
 
     sqlite3_stmt *stmt = NULL;
+    int error_status = 0;
 
     while (sql && *sql)
     {
@@ -405,6 +407,7 @@ static int handle_stmt(const json_t *request, const char *sql)
             !bind_content(stmt, json_find(request, "content")) ||
             !bind_session(stmt, json_find(request, "session")))
         {
+            error_status = HTTP_SERVER_ERROR;
             goto error;
         }
 
@@ -421,6 +424,7 @@ static int handle_stmt(const json_t *request, const char *sql)
         }
         if (step != SQLITE_DONE)
         {
+            error_status = HTTP_BAD_REQUEST;
             goto error;
         }
         sqlite3_finalize(stmt);
@@ -448,7 +452,7 @@ error:
     {
         db_exec("ROLLBACK;");
     }
-    return HTTP_BAD_REQUEST;
+    return error_status;
 }
 
 static int handle_task(const json_t *request)
@@ -457,9 +461,7 @@ static int handle_task(const json_t *request)
 
     if (!strcmp(path, "POST /api/exec"))
     {
-        const char *stmt = json_text(json_find(request, "content"));
-
-        return handle_stmt(request, stmt);
+        return handle_stmt(request, json_text(json_find(request, "content")));
     }
     if (!strcmp(path, "POST /api/backup"))
     {
@@ -482,8 +484,9 @@ static int handle_task(const json_t *request)
         raise(SIGINT);
         return HTTP_OK;
     }
-    buffer_write(&buffer, "Bad Request");
-    return HTTP_BAD_REQUEST;
+    fprintf(stderr, "Unhandled task\n");
+    write_error("Internal Server Error");
+    return HTTP_SERVER_ERROR;
 }
 
 typedef struct
@@ -606,6 +609,9 @@ static const buffer_t *solve_request(const json_t *request, int status)
             break;
         case HTTP_NOT_FOUND:
             write_headers(HEADER_NOT_FOUND);
+            break;
+        case HTTP_SERVER_ERROR:
+            write_headers(HEADER_SERVER_ERROR);
             break;
     }
     buffer_insert(&buffer, 0, headers, strlen(headers));
