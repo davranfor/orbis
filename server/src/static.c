@@ -14,6 +14,8 @@ static buffer_t bad_request;
 static buffer_t unauthorized;
 static buffer_t server_error;
 
+#define fill_content(title, issue) \
+    "{\"title\": \"" title "\", \"issue\": \"" issue "\"}"
 #define load_buffer(buffer, method, content) \
     buffer_format(buffer, method \
         "Content-Type: application/json\r\n" \
@@ -22,9 +24,13 @@ static buffer_t server_error;
 
 static void load(void)
 {
-    if (!load_buffer(&bad_request,  HEADER_BAD_REQUEST,  "{\"error\": \"Bad Request\"}") ||
-        !load_buffer(&unauthorized, HEADER_UNAUTHORIZED, "{\"error\": \"Unauthorized\"}") ||
-        !load_buffer(&server_error, HEADER_SERVER_ERROR, "{\"error\": \"Internal Server Error\"}"))
+    const char *bad_request_content  = fill_content("Bad Request", "Malformed request");
+    const char *unauthorized_content = fill_content("Unauthorized", "Login required");
+    const char *server_error_content = fill_content("Internal Server Error", "Unknown");
+ 
+    if (!load_buffer(&bad_request,  HEADER_BAD_REQUEST,  bad_request_content)  ||
+        !load_buffer(&unauthorized, HEADER_UNAUTHORIZED, unauthorized_content) ||
+        !load_buffer(&server_error, HEADER_SERVER_ERROR, server_error_content))
     {
         perror("load_buffer");
         exit(EXIT_FAILURE);

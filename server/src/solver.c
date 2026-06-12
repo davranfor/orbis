@@ -180,17 +180,37 @@ void solver_reload(void)
     load();
 }
 
-static void write_error(const char *error)
-{
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
+static void write_error(const char *title, const char *issue)
+{
     const json_t message =
     {
-        .key = "error",
-        .string = (char *)error,
-        .type = JSON_STRING
+        .child = (json_t [])
+        {
+            { .key = "title", .string = (char *)title, .type = JSON_STRING },
+            { .key = "issue", .string = (char *)issue, .type = JSON_STRING }
+        },
+        .type = JSON_OBJECT,
+        .size = 2
     };
+
+    json_buffer_encode(&buffer, &message, 2);
+}
 #pragma GCC diagnostic pop
+
+static void write_issue(const json_t *node)
+{
+    const json_t message =
+    {
+        .child = (json_t [])
+        {
+            { .key = "title", .string = "Bad Request", .type = JSON_STRING },
+            { .key = "issue", .child = node->child, .type = node->type, .size = node->size }
+        },
+        .type = JSON_OBJECT,
+        .size = 2
+    };
 
     json_buffer_encode(&buffer, &message, 2);
 }
@@ -230,7 +250,6 @@ static int verify_request(const json_t *request)
     sqlite3_finalize(stmt);
     return verified;
 error:
-    fprintf(stderr, "%s\n", sqlite3_errmsg(db));
     sqlite3_finalize(stmt);
     return 0;
 }
@@ -407,6 +426,8 @@ static int handle_stmt(const json_t *request, const char *sql)
             !bind_content(stmt, json_find(request, "content")) ||
             !bind_session(stmt, json_find(request, "session")))
         {
+            buffer_reset(&buffer);
+            write_error("Internal Server Error", sqlite3_errmsg(db));
             error_status = HTTP_SERVER_ERROR;
             goto error;
         }
@@ -424,6 +445,8 @@ static int handle_stmt(const json_t *request, const char *sql)
         }
         if (step != SQLITE_DONE)
         {
+            buffer_reset(&buffer);
+            write_error("Bad Request", sqlite3_errmsg(db));
             error_status = HTTP_BAD_REQUEST;
             goto error;
         }
@@ -438,15 +461,12 @@ static int handle_stmt(const json_t *request, const char *sql)
     {
         if ((method == GET) || (sqlite3_total_changes(db) - total_changes == 0))
         {
-            write_error("Not Found");
+            write_error("Not Found", "Resource not found");
             return HTTP_NOT_FOUND;
         }
     }
     return method == POST ? HTTP_CREATED : HTTP_OK;
 error:
-    fprintf(stderr, "%s\n", sqlite3_errmsg(db));
-    buffer_reset(&buffer);
-    write_error(sqlite3_errmsg(db));
     sqlite3_finalize(stmt);
     if (method != GET)
     {
@@ -484,8 +504,7 @@ static int handle_task(const json_t *request)
         raise(SIGINT);
         return HTTP_OK;
     }
-    fprintf(stderr, "Unhandled task\n");
-    write_error("Internal Server Error");
+    write_error("Internal Server Error", "Unhandled task");
     return HTTP_SERVER_ERROR;
 }
 
@@ -502,23 +521,28 @@ static void on_validate_request(const json_t *node, void *data)
     const char *path = json_text(json_pointer(node, "/path"));
     context_t *context = data;
 
-    if (strncmp(path, "/params", 7))
-    {
-        if (!strncmp(path, "/session", 8))
-        {
-            *context->status = HTTP_FORBIDDEN;
-        }
-        context->endpoint = NULL;
-    }
-    else
+    if (!strncmp(path, "/params", 7))
     {
         context->endpoint = router_search(context->path, ++context->index);
         if (context->endpoint != NULL)
         {
             return;
         }
+        context->index > 1
+            ? write_error("Bad Request", "Missing or invalid parameters")
+            : write_issue(node);
     }
-    json_buffer_encode(&buffer, node, 2);
+    else if (!strncmp(path, "/session", 8))
+    {
+        *context->status = HTTP_FORBIDDEN;
+        context->endpoint = NULL;
+        write_error("Forbidden", "Access denied");
+    }
+    else
+    {
+        context->endpoint = NULL;
+        write_issue(node);
+    }
 }
 
 static const endpoint_t *validate_request(const json_t *request, int *status)
@@ -528,8 +552,7 @@ static const endpoint_t *validate_request(const json_t *request, int *status)
 
     if (endpoint == NULL)
     {
-        fprintf(stderr, "Not a valid endpoint\n");
-        write_error("Not Found");
+        write_error("Not Found", "Endpoint not found");
         *status = HTTP_NOT_FOUND;
         return NULL;
     }
