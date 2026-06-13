@@ -25,7 +25,8 @@ POST /api/login
   )
 )
 -- @stmt
-UPDATE users SET token = new_token(id, role, token, $SESSION)
+UPDATE users
+SET token = new_token(id, role, token, $SESSION)
 WHERE email = :email AND password = :password;
 
 -- @path
