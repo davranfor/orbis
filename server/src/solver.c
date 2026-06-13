@@ -36,8 +36,8 @@ enum
 enum { GET = 1, POST, PUT, PATCH, DELETE };
 
 static sqlite3 *db;
+static sqlite3_stmt *auth;
 static buffer_t buffer;
-static const char *session_sql;
 
 static int load_db(const char *metadata)
 {
@@ -52,12 +52,16 @@ static int load_db(const char *metadata)
 
     const endpoint_t *endpoint = router_search("GET /api/session", 0);
 
-    if (endpoint == NULL)
+    if ((endpoint == NULL) || (endpoint->stmt == NULL))
     {
-        fprintf(stderr, "'GET /api/session' is not found\n");
+        fprintf(stderr, "'GET /api/session' statement not found\n");
         return 0;
     }
-    session_sql = endpoint->stmt;
+    if (sqlite3_prepare_v2(db, endpoint->stmt, -1, &auth, NULL) != SQLITE_OK)
+    {
+        fprintf(stderr, "session: %s\n", sqlite3_errmsg(db));
+        return 0;
+    }
     return 1;
 }
 
@@ -165,6 +169,7 @@ static void load(void)
 static void unload(void)
 {
     buffer_clear(&buffer);
+    sqlite3_finalize(auth);
     sqlite3_close(db);
 }
 
@@ -215,7 +220,7 @@ static void write_issue(const json_t *node)
     json_buffer_encode(&buffer, &message, 2);
 }
 
-static int verify_request(const json_t *request)
+static int authorized_request(const json_t *request)
 {
     const json_t *session = json_find(request, "session");
     int user = (int)session->child[SESSION_USER].number;
@@ -227,31 +232,25 @@ static int verify_request(const json_t *request)
         return 1;
     }
 
-    sqlite3_stmt *stmt;
-
-    if ((sqlite3_prepare_v2(db, session_sql, -1, &stmt, NULL) != SQLITE_OK) ||
-        (sqlite3_bind_int(stmt, 1, user) != SQLITE_OK) ||
-        (sqlite3_bind_int(stmt, 2, role) != SQLITE_OK) ||
-        (sqlite3_bind_text(stmt, 3, token, -1, SQLITE_STATIC) != SQLITE_OK))
-    {
-        goto error;
-    }
-
     int step, verified = 0;
 
-    while ((step = sqlite3_step(stmt)) == SQLITE_ROW)
+    if ((sqlite3_bind_int(auth, 1, user) != SQLITE_OK) ||
+        (sqlite3_bind_int(auth, 2, role) != SQLITE_OK) ||
+        (sqlite3_bind_text(auth, 3, token, -1, SQLITE_STATIC) != SQLITE_OK))
     {
-        verified = sqlite3_column_int(stmt, 0);
+        goto done;
+    }
+    while ((step = sqlite3_step(auth)) == SQLITE_ROW)
+    {
+        verified = sqlite3_column_int(auth, 0);
     }
     if (step != SQLITE_DONE)
     {
-        goto error;
+        verified = 0;
     }
-    sqlite3_finalize(stmt);
+done:
+    sqlite3_reset(auth);
     return verified;
-error:
-    sqlite3_finalize(stmt);
-    return 0;
 }
 
 static int bind_params(sqlite3_stmt *stmt, const json_t *params)
@@ -649,7 +648,7 @@ static const buffer_t *solve_request(const json_t *request, int status)
 
 const buffer_t *solver_handle(const json_t *request)
 {
-    if (!verify_request(request))
+    if (!authorized_request(request))
     {
         return static_unauthorized();
     }
