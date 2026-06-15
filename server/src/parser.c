@@ -59,10 +59,13 @@ typedef struct
 
 static const buffer_t *parse_headers(request_t *request, char *str)
 {
+#ifdef DEBUG
+    puts(str);
+#endif
+
     char *content = strstr(str, "\r\n\r\n") + 4;
 
     content[-2] = '\0';
-    puts(str);
     if (*content != '\0')
     {
         if (strstr(str, "\r\nContent-Type: application/json\r\n"))
@@ -295,9 +298,6 @@ const buffer_t *parser_handle(char *message)
     {
         return static_bad_request();
     }
-#ifdef DEBUG
-    json_print(&node);
-#endif
     return solver_handle(&node);
 }
 

@@ -17,7 +17,7 @@
     "Cache-Control: no-store\r\n"
 
 #define HEADER_CREATED \
-    "HTTP/1.1 201 Created\r\n" \
+    "HTTP/1.1 201 Created\r\n"
 
 #define HEADER_NO_CONTENT \
     "HTTP/1.1 204 No Content\r\n"

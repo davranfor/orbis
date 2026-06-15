@@ -232,7 +232,7 @@ static int authorized_request(const json_t *request)
         return 1;
     }
 
-    int step, verified = 0;
+    int step, authorized = 0;
 
     if ((sqlite3_bind_int(auth, 1, user) != SQLITE_OK) ||
         (sqlite3_bind_int(auth, 2, role) != SQLITE_OK) ||
@@ -242,15 +242,15 @@ static int authorized_request(const json_t *request)
     }
     while ((step = sqlite3_step(auth)) == SQLITE_ROW)
     {
-        verified = sqlite3_column_int(auth, 0);
+        authorized = sqlite3_column_int(auth, 0);
     }
     if (step != SQLITE_DONE)
     {
-        verified = 0;
+        authorized = 0;
     }
 done:
     sqlite3_reset(auth);
-    return verified;
+    return authorized;
 }
 
 static int bind_params(sqlite3_stmt *stmt, const json_t *params)
@@ -637,8 +637,8 @@ static const buffer_t *solve_request(const json_t *request, int status)
             break;
     }
     buffer_insert(&buffer, 0, headers, strlen(headers));
-#ifdef DEBUG 
-    if (buffer.length)
+#ifdef DEBUG
+    if (buffer.length > 0)
     {
         puts(buffer.text);
     }

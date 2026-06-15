@@ -30,14 +30,14 @@ int session_parse(session_t *session, const char *path, char *str)
         {
             str += 8;
 
-            int data[2] = { 0 };
+            int num[2] = { 0 };
 
             for (int i = 0; i < 2; i++)
             {
                 char *ptr;
 
-                data[i] = (int)strtol(str, &ptr, 10);
-                if ((*ptr != ':') || (data[i] <= 0))
+                num[i] = (int)strtol(str, &ptr, 10);
+                if ((*ptr != ':') || (num[i] <= 0))
                 {
                     return -1;
                 }
@@ -48,8 +48,8 @@ int session_parse(session_t *session, const char *path, char *str)
                 return -1;
             }
             str[TOKEN_SIZE] = '\0';
-            session->user = data[0];
-            session->role = data[1];
+            session->user = num[0];
+            session->role = num[1];
             session->token = str;
             return 1;
         }
