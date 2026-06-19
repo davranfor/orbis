@@ -66,10 +66,7 @@ int router_method(const char *str)
 
 static unsigned get_section(const char *str)
 {
-    static const char *sections[] =
-    {
-        "-- @path", "-- @eval", "-- @stmt"
-    };
+    static const char *sections[] = { "-- @path", "-- @eval", "-- @stmt" };
 
     for (size_t i = 0; i < sizeof sections / sizeof sections[0]; i++)
     {
