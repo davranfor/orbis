@@ -416,7 +416,7 @@ static int handle_stmt(const json_t *request, const char *sql)
     }
 
     sqlite3_stmt *stmt = NULL;
-    int error_status = 0;
+    int error_status;
 
     while (sql && *sql)
     {
