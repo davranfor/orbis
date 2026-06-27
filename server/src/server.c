@@ -21,8 +21,6 @@
 #include "parser.h"
 #include "server.h"
 
-#define BUFFER_SIZE 32768
-
 static struct { char text[BUFFER_SIZE]; size_t length; } buffer;
 static volatile sig_atomic_t stop;
 

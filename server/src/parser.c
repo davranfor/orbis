@@ -15,6 +15,7 @@
 #include <orbis/json_buffer.h>
 #include "headers.h"
 #include "session.h"
+#include "config.h"
 #include "router.h"
 #include "static.h"
 #include "solver.h"

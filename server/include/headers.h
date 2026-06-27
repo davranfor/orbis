@@ -7,11 +7,6 @@
 #ifndef HEADERS_H
 #define HEADERS_H
 
-#define HEADERS_MAX_LENGTH 4096
-#define REQUEST_MAX_LENGTH (1024 * 1024 * 4)
-#define REQUEST_MAX_PARAMS 16
-#define REQUEST_MAX_FIELDS 64
-
 #define HEADER_OK \
     "HTTP/1.1 200 OK\r\n" \
     "Cache-Control: no-store\r\n"
