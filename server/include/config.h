@@ -7,9 +7,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define SERVER_ADDR "127.0.0.1"
 #define SERVER_PORT 8001
-
 #define MAX_CLIENTS 64
 
 #endif
