@@ -177,13 +177,13 @@ static int decode_fields(const json_event_t *event)
 
     if (event->depth == 0)
     {
-        if (event->type & JSON_ITERABLE_END)
-        {
-            return 1;
-        }
         if (event->type & JSON_ITERABLE)
         {
             fields->type = event->type;
+            return 1;
+        }
+        if (event->type & JSON_ITERABLE_END)
+        {
             return 1;
         }
         return 0;
