@@ -14,7 +14,7 @@
 const char *test_mask(const char *text, const char *mask)
 {
     /**
-     *  '  quote text until next quote (inner quotes must be escaped with !)
+     *  '  quote text until next quote
      *  !  next character is a literal (not a function) (required)
      *  ?  next character is a literal (not a function) (optional)
      *  0  is_digit (required)
