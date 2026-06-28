@@ -45,11 +45,6 @@ const char *test_mask(const char *text, const char *mask)
                 mask++;
                 continue;
             }
-            if ((mask[0] == '!') &&
-                (mask[1] == '\''))
-            {
-                mask++;
-            }
             required = 1;
         }
         else switch (*mask)
