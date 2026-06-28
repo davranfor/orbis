@@ -32,7 +32,7 @@ const char *test_mask(const char *text, const char *mask)
 
     int quoted = 0;
 
-    while (*mask != '\0')
+    for (; *mask != '\0'; mask++)
     {
         int (*function)(int) = NULL;
         int required = 0;
@@ -42,7 +42,6 @@ const char *test_mask(const char *text, const char *mask)
             if (*mask == '\'')
             {
                 quoted = 0;
-                mask++;
                 continue;
             }
             required = 1;
@@ -51,7 +50,6 @@ const char *test_mask(const char *text, const char *mask)
         {
             case '\'':
                 quoted = 1;
-                mask++;
                 continue;
             case '!':
                 required = 1;
@@ -115,10 +113,6 @@ const char *test_mask(const char *text, const char *mask)
         else if (required)
         {
             return NULL;
-        }
-        if (*mask != '\0')
-        {
-            mask++;
         }
     }
     return *text == *mask ? text : NULL;
