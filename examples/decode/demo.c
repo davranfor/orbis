@@ -11,7 +11,7 @@ static int decode(char *text)
 
     if (node == NULL)
     {
-        perror("json_decode");
+        fprintf(stderr, "Error decoding file\n");
         return 0;
     }
 

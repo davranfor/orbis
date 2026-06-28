@@ -28,7 +28,7 @@ int main(void)
 
     if (array == NULL)
     {
-        perror("json_decode");
+        fprintf(stderr, "Error decoding array\n");
         return 0;
     }
     puts("Unordered");

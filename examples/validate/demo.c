@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     }
     if (!(node = json_decode(file[0])))
     {
-        perror("json_decode");
+        fprintf(stderr, "Error decoding '%s'\n", path[0]);
         goto stop;
     }
     if (!(code = json_compile(file[1])))

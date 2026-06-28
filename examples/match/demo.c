@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
 
     if (root == NULL)
     {
-        perror("json_decode");
+        fprintf(stderr, "Error decoding file\n");
     }
     for (unsigned i = 0, n = json_is_array(root) ? json_size(root) : 0; i < n; i++)
     {
