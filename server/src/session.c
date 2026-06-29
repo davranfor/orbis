@@ -15,10 +15,16 @@
 /**
  * Parse cookie in the form:
  * Cookie: [third-party-cookie;] session=<int>:<int>:<hex 64 bytes> [third-party-cookie]
- * If 'session' is not found and '/api/login' is not found, then return 0 (Unauthorized)
+ * If '/api/login' is not found and 'session' is not found, then return 0 (Unauthorized)
+ * If 'session' is malformed, then return -1 (Bad Request)
  */
 int session_parse(session_t *session, const char *path, char *str)
 {
+    if (!strcmp(path, "POST /api/login"))
+    {
+        session->token = "";
+        return 1;
+    }
     if ((str = strstr(str, "\r\nCookie: ")))
     {
         str += 10;
@@ -53,11 +59,6 @@ int session_parse(session_t *session, const char *path, char *str)
             session->token = str;
             return 1;
         }
-    }
-    if (!strcmp(path, "POST /api/login"))
-    {
-        session->token = "";
-        return 1;
     }
     return 0;
 }

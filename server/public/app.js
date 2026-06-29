@@ -70,10 +70,7 @@ async function login() {
 
 async function logout() {
     await api("POST", "/api/logout");
-    hide("view-users");
-    hide("btn-logout");
-    show("view-login");
-    closeEdit();
+    location.reload(true);
 }
 
 /* ── load & render users ─────────────────────────────── */
