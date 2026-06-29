@@ -23,8 +23,8 @@ const char *test_mask(const char *text, const char *mask)
      *  l  is_alpha (optional)
      *  A  is_alnum (required)
      *  a  is_alnum (optional)
-     *  C  is_print (required)
-     *  c  is_print (optional)
+     *  P  is_print (required)
+     *  p  is_print (optional)
      *  X  is_xdigit (required)
      *  x  is_xdigit (optional)
      *  *  return the string at this position
@@ -79,11 +79,11 @@ const char *test_mask(const char *text, const char *mask)
             case 'a':
                 function = is_alnum;
                 break;
-            case 'C':
+            case 'P':
                 function = is_print;
                 required = 1;
                 break;
-            case 'c':
+            case 'p':
                 function = is_print;
                 break;
             case 'X':
