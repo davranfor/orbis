@@ -15,8 +15,6 @@
 /**
  * Parse cookie in the form:
  * Cookie: [third-party-cookie;] session=<int>:<int>:<hex 64 bytes> [third-party-cookie]
- * If '/api/login' is not found and 'session' is not found, then return 0 (Unauthorized)
- * If 'session' is malformed, then return -1 (Bad Request)
  */
 int session_parse(session_t *session, const char *path, char *str)
 {
@@ -45,13 +43,13 @@ int session_parse(session_t *session, const char *path, char *str)
                 num[i] = (int)strtol(str, &ptr, 10);
                 if ((*ptr != ':') || (num[i] <= 0))
                 {
-                    return -1;
+                    return 0;
                 }
                 str = ptr + 1;
             }
             if (end - str < TOKEN_SIZE)
             {
-                return -1;
+                return 0;
             }
             str[TOKEN_SIZE] = '\0';
             session->user = num[0];

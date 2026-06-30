@@ -90,10 +90,9 @@ static const buffer_t *parse_headers(request_t *request, char *str)
         {
             *request->params++ = '\0';
         }
-        switch (session_parse(&request->session, str, end))
+        if (!session_parse(&request->session, str, end))
         {
-            case -1: return static_bad_request();
-            case 0: return static_unauthorized();
+            return static_unauthorized();
         }
         return NULL;
     }
