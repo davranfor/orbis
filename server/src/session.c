@@ -23,14 +23,14 @@ int session_parse(session_t *session, const char *path, char *str)
         session->token = "";
         return 1;
     }
-    if ((str = strstr(str, "\r\nCookie: ")))
+    if ((str = strstr(str, "\r\nCookie:")))
     {
-        str += 10;
+        str += 9;
 
         char *end = strchr(str, '\r');
 
         *end = '\0';
-        if ((str = strstr(str, "session=")) && (str[-1] == ' '))
+        if ((str = strstr(str, "session=")))
         {
             str += 8;
 
