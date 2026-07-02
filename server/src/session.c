@@ -30,9 +30,9 @@ int session_parse(session_t *session, const char *path, char *str)
         char *end = strchr(str, '\r');
 
         *end = '\0';
-        if ((str = strstr(str, "session=")))
+        if ((str = strstr(str, " session=")))
         {
-            str += 8;
+            str += 9;
 
             int num[2] = { 0 };
 
