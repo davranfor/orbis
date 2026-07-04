@@ -12,6 +12,7 @@ import json
 import re
 import os
 import signal
+import sys
 import threading
 
 API_HOST = "http://127.0.0.1:8001"
@@ -118,12 +119,13 @@ class ServiceHandler(http.server.BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    server = http.server.HTTPServer(("127.0.0.1", SERVICE_PORT), ServiceHandler)
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else SERVICE_PORT
+    server = http.server.HTTPServer(("127.0.0.1", port), ServiceHandler)
 
     def handle_sigterm(signum, frame):
         threading.Thread(target=server.shutdown).start()
 
     signal.signal(signal.SIGTERM, handle_sigterm)
 
-    print(f"Service waiting on port {SERVICE_PORT}")
+    print(f"Service waiting on port {port}")
     server.serve_forever()
