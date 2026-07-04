@@ -80,11 +80,11 @@ class ServiceHandler(http.server.BaseHTTPRequestHandler):
         return None
 
     def get_cookie(self):
-        """Forward the client cookie or fall back to the file cookie."""
+        """Forward the client cookie or fall back to the cached session cookie."""
         cookie = self.headers.get("Cookie")
         if cookie and "session=" in cookie:
             return cookie
-        return read_session_cookie()
+        return SESSION_COOKIE
 
     def handle_route(self, method):
         # Strip /svc prefix
@@ -119,6 +119,7 @@ class ServiceHandler(http.server.BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    SESSION_COOKIE = read_session_cookie()
     port = int(sys.argv[1]) if len(sys.argv) > 1 else SERVICE_PORT
     server = http.server.HTTPServer(("127.0.0.1", port), ServiceHandler)
 
