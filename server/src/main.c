@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     }
     setlocale(LC_NUMERIC, "C");
     loader_load();
-    printf("Server waiting on port %u\n\n", port);
+    printf("Server waiting on port %u\n", port);
     server_run(port);
     return 0;
 }
