@@ -2,12 +2,12 @@
 
 cd "$(dirname -- "${BASH_SOURCE[0]}")/.." || exit 1
 
-if [ -f service.py ]; then
-    python3 service.py &
-    SERVICE_PID=$!
-fi
+#if [ -f service.py ]; then
+#    python3 service.py &
+#    SERVICE_PID=$!
+#fi
 
 ./server
 
-[ -n "$SERVICE_PID" ] && kill "$SERVICE_PID"
+#[ -n "$SERVICE_PID" ] && kill "$SERVICE_PID"
 
