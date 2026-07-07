@@ -159,6 +159,13 @@ DELETE /api/users
 DELETE FROM users WHERE id = @id;    
 
 -- @path
+GET /api/auth
+-- @eval
+(any)
+-- @stmt
+none
+
+-- @path
 POST /api/exec
 -- @eval
 (object

@@ -2,5 +2,5 @@
 
 source "$(dirname -- "${BASH_SOURCE[0]}")/.env"
 
-curl -i -c "$COOKIES_DIR/cookies" -b "$COOKIES_DIR/cookies" "http://localhost:8000/svc/users" -w "\n"
+curl -i -c "$COOKIES_DIR/cookies" -b "$COOKIES_DIR/cookies" "http://$PROXIE/svc/users" -w "\n"
 

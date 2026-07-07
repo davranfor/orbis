@@ -478,6 +478,10 @@ static int handle_task(const json_t *request)
 {
     const char *path = json_string(json_find(request, "path"));
 
+    if (!strcmp(path, "GET /api/auth"))
+    {
+        return HTTP_OK;
+    }
     if (!strcmp(path, "POST /api/exec"))
     {
         return handle_stmt(request, json_text(json_find(request, "content")));
