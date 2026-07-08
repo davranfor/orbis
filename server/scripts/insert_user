@@ -2,7 +2,7 @@
 
 source "$(dirname -- "${BASH_SOURCE[0]}")/.env"
 
-curl -i -c "$BASE_DIR/cookies" -b "$BASE_DIR/cookies" -X POST "http://$SERVER_HOST/api/users" \
+curl -i -c "$BASE_DIR/cookies" -b "$BASE_DIR/cookies" "http://$SERVER_HOST/api/users" \
      -H "Content-Type: application/json" \
      -d '{"id": 2, "role": 2, "name": "Elena", "email": "elena@mail.com", "password": "12345678"}' -w "\n"
 
