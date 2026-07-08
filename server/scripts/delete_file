@@ -1,0 +1,6 @@
+#!/bin/bash
+
+source "$(dirname -- "${BASH_SOURCE[0]}")/.env"
+
+curl -i -c "$BASE_DIR/cookies" -b "$BASE_DIR/cookies" -X DELETE "http://$PROXY_HOST/files/test.pdf" -w "\n"
+
