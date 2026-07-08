@@ -9,28 +9,19 @@ import http.server
 import urllib.request
 import urllib.error
 import json
-import re
-import os
+import logging
 import signal
 import sys
 import threading
 
 API_HOST = "http://127.0.0.1:8001"
-COOKIES_FILE = os.path.join(os.path.dirname(__file__), "cookies")
 SERVICE_PORT = 8002
 
+logging.basicConfig(
+    level=logging.ERROR,
+    format="%(asctime)s %(levelname)s %(message)s",
+)
 
-def read_session_cookie():
-    """Read session cookie from the orbis cookies file."""
-    try:
-        with open(COOKIES_FILE) as f:
-            for line in f:
-                m = re.search(r'session\s+(\S+)', line)
-                if m:
-                    return "session=" + m.group(1)
-    except FileNotFoundError:
-        pass
-    return None
 
 
 def api_request(method, path, body=None, cookie=None):
@@ -50,6 +41,9 @@ def api_request(method, path, body=None, cookie=None):
     except urllib.error.HTTPError as e:
         raw = e.read()
         return e.code, raw.decode() if raw else None
+    except urllib.error.URLError as e:
+        logging.error("API unreachable %s %s: %s", method, url, e.reason)
+        return 503, None
 
 
 class ServiceHandler(http.server.BaseHTTPRequestHandler):
@@ -80,11 +74,8 @@ class ServiceHandler(http.server.BaseHTTPRequestHandler):
         return None
 
     def get_cookie(self):
-        """Forward the client cookie or fall back to the cached session cookie."""
-        cookie = self.headers.get("Cookie")
-        if cookie and "session=" in cookie:
-            return cookie
-        return SESSION_COOKIE
+        """Forward the client cookie to the REST API."""
+        return self.headers.get("Cookie")
 
     def handle_route(self, method):
         # Strip /svc prefix
@@ -109,6 +100,7 @@ class ServiceHandler(http.server.BaseHTTPRequestHandler):
                 self.send_error_json(status, "API error", data or "")
             return
 
+        logging.error("Unhandled route: %s %s", method, self.path)
         self.send_error_json(404, "Not Found", "Endpoint not found")
 
     def do_GET(self):    self.handle_route("GET")
@@ -119,7 +111,6 @@ class ServiceHandler(http.server.BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    SESSION_COOKIE = read_session_cookie()
     port = int(sys.argv[1]) if len(sys.argv) > 1 else SERVICE_PORT
     server = http.server.HTTPServer(("127.0.0.1", port), ServiceHandler)
 

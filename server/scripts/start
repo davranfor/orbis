@@ -7,9 +7,8 @@ SERVICE_ACTIVE=false
 if [ "$SERVICE_ACTIVE" = true ]; then
     python3 service.py &
     SERVICE_PID=$!
-    ./server
-    kill "$SERVICE_PID"
-else
-    ./server
 fi
 
+./server
+
+[ -n "$SERVICE_PID" ] && kill "$SERVICE_PID"
