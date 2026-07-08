@@ -23,8 +23,7 @@ logging.basicConfig(
 )
 
 
-
-def api_request(method, path, body=None, cookie=None, host=None):
+def api_request(method, host, path, cookie, body=None):
     """Make a request to the orbis REST API."""
     url = host + path
     data = json.dumps(body).encode() if body is not None else None
@@ -75,17 +74,13 @@ class ServiceHandler(http.server.BaseHTTPRequestHandler):
                 return None
         return None
 
-    def get_cookie(self):
-        """Forward the client cookie to the REST API."""
-        return self.headers.get("Cookie")
-
     def handle_route(self, method):
         # Strip /svc prefix
         path = self.path
         if path.startswith("/svc"):
             path = path[4:] or "/"
 
-        cookie = self.get_cookie()
+        cookie = self.headers.get("Cookie")
         body = self.read_body() if method in ("POST", "PUT", "PATCH") else None
 
         # ── Route: GET /svc/ping ──────────────────────────
@@ -95,7 +90,7 @@ class ServiceHandler(http.server.BaseHTTPRequestHandler):
 
         # ── Route: GET /svc/users ─────────────────────────
         if method == "GET" and path.startswith("/users"):
-            status, data = api_request("GET", "/api/users", cookie=cookie, host=self.API_HOST)
+            status, data = api_request("GET", self.API_HOST, "/api/users", cookie)
             if status == 200:
                 self.send_json(200, json.loads(data))
             else:
@@ -114,7 +109,8 @@ class ServiceHandler(http.server.BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else SERVICE_PORT
-    ServiceHandler.API_HOST = sys.argv[2] if len(sys.argv) > 2 else "http://127.0.0.1:8001"
+    if len(sys.argv) > 2:
+        ServiceHandler.API_HOST = sys.argv[2]
     server = http.server.HTTPServer(("127.0.0.1", port), ServiceHandler)
 
     def handle_sigterm(signum, frame):
