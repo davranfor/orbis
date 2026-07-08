@@ -14,8 +14,8 @@ import signal
 import sys
 import threading
 
-API_HOST = "http://127.0.0.1:8001"
 SERVICE_PORT = 8002
+
 
 logging.basicConfig(
     level=logging.ERROR,
@@ -24,9 +24,9 @@ logging.basicConfig(
 
 
 
-def api_request(method, path, body=None, cookie=None):
+def api_request(method, path, body=None, cookie=None, host=None):
     """Make a request to the orbis REST API."""
-    url = API_HOST + path
+    url = host + path
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method)
 
@@ -47,6 +47,8 @@ def api_request(method, path, body=None, cookie=None):
 
 
 class ServiceHandler(http.server.BaseHTTPRequestHandler):
+
+    API_HOST = "http://127.0.0.1:8001"
 
     def log_message(self, fmt, *args):
         pass  # Silence default access log — nginx handles it
@@ -93,7 +95,7 @@ class ServiceHandler(http.server.BaseHTTPRequestHandler):
 
         # ── Route: GET /svc/users ─────────────────────────
         if method == "GET" and path.startswith("/users"):
-            status, data = api_request("GET", "/api/users", cookie=cookie)
+            status, data = api_request("GET", "/api/users", cookie=cookie, host=self.API_HOST)
             if status == 200:
                 self.send_json(200, json.loads(data))
             else:
@@ -112,6 +114,7 @@ class ServiceHandler(http.server.BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else SERVICE_PORT
+    ServiceHandler.API_HOST = sys.argv[2] if len(sys.argv) > 2 else "http://127.0.0.1:8001"
     server = http.server.HTTPServer(("127.0.0.1", port), ServiceHandler)
 
     def handle_sigterm(signum, frame):

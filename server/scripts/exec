@@ -8,7 +8,7 @@ FROM users;
 EOF
 )
 
-curl -s -c "$COOKIES_DIR/cookies" -b "$COOKIES_DIR/cookies" "http://$HOST/api/exec" \
+curl -s -c "$BASE_DIR/cookies" -b "$BASE_DIR/cookies" "http://$SERVER_HOST/api/exec" \
      -H "Content-Type: application/sql" \
      -d "$payload" | jq -M
 

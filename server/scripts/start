@@ -1,14 +1,16 @@
 #!/bin/bash
 
-cd "$(dirname -- "${BASH_SOURCE[0]}")/.." || exit 1
+source "$(dirname -- "${BASH_SOURCE[0]}")/.env"
+cd "$BASE_DIR" || exit 1
 
 SERVICE_ACTIVE=false
 
 if [ "$SERVICE_ACTIVE" = true ]; then
-    python3 service.py &
+    python3 service.py $SERVICE_PORT "http://$SERVER_HOST" &
     SERVICE_PID=$!
 fi
 
-./server
+./server $SERVER_PORT
 
 [ -n "$SERVICE_PID" ] && kill "$SERVICE_PID"
+
