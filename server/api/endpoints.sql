@@ -1,7 +1,7 @@
 -- @path
 GET /api/session
 -- @eval
-(any)
+(null)
 -- @stmt
 SELECT 1 FROM users WHERE id = ? AND role = ? AND token = ?;
 
