@@ -8,13 +8,6 @@
 static int decode(char *text)
 {
     json_t *node = json_decode(text);
-
-    if (node == NULL)
-    {
-        fprintf(stderr, "Error decoding file\n");
-        return 0;
-    }
-
     int rc = json_print(node);
 
     free(node);
@@ -33,8 +26,13 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    int rc = decode(text) ? EXIT_SUCCESS : EXIT_FAILURE;
+    int rc = EXIT_SUCCESS;
 
+    if (!decode(text))
+    {
+        fprintf(stderr, "Error decoding file\n");
+        rc = EXIT_FAILURE;
+    }
     free(text);
     return rc;
 }

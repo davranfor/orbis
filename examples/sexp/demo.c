@@ -25,7 +25,7 @@ int print(const sexp_event_t *event)
             printf("%.0f\n", event->number);
             break;
         case SEXP_REAL:
-            printf("%g\n", event->number);
+            printf("%.17g\n", event->number);
             break;
         case SEXP_TRUE:
             printf("true\n");
