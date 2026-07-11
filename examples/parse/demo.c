@@ -34,7 +34,7 @@ int print(const json_event_t *event)
             printf("%.0f\n", event->number);
             break;
         case JSON_REAL:
-            printf("%.17g\n", event->number);
+            printf("%.2f\n", event->number);
             break;
         case JSON_TRUE:
             printf("true\n");
