@@ -77,6 +77,23 @@ static void db_exec(const char *sql)
     }
 }
 
+static void db_assert(sqlite3_context *context, int argc, sqlite3_value **argv)
+{
+    if (argc != 2)
+    {
+        sqlite3_result_error(context, "assert() takes 2 arguments", -1);
+        return;
+    }
+    if (sqlite3_value_int(argv[0]))
+    {
+        return;
+    }
+
+    const char *message = (const char *)sqlite3_value_text(argv[1]);
+    
+    sqlite3_result_error(context, message ? message : "Aborted", -1);
+}
+
 static void new_token(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
     if (argc != 4)
@@ -146,24 +163,20 @@ static void load(void)
     }
     free(metadata);
 
-    int status;
+#define db_create_function(func, name, argc)                        \
+    do                                                              \
+    {                                                               \
+        if (SQLITE_OK != sqlite3_create_function(                   \
+            db, name, argc, SQLITE_UTF8, NULL, func, NULL, NULL))   \
+        {                                                           \
+            fprintf(stderr, "%s\n", sqlite3_errmsg(db));            \
+            exit(EXIT_FAILURE);                                     \
+        }                                                           \
+    } while (0)
 
-    status = sqlite3_create_function(
-        db, "new_token", 4, SQLITE_UTF8, NULL, new_token, NULL, NULL
-    );
-    if (status != SQLITE_OK)
-    {
-        fprintf(stderr, "%s\n", sqlite3_errmsg(db));
-        exit(EXIT_FAILURE);
-    }
-    status = sqlite3_create_function(
-        db, "new_password", 0, SQLITE_UTF8, NULL, new_password, NULL, NULL
-    );
-    if (status != SQLITE_OK)
-    {
-        fprintf(stderr, "%s\n", sqlite3_errmsg(db));
-        exit(EXIT_FAILURE);
-    }
+    db_create_function(db_assert, "assert", 2);
+    db_create_function(new_token, "new_token", 4);
+    db_create_function(new_password, "new_password", 0);
 }
 
 static void unload(void)

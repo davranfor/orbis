@@ -1,0 +1,16 @@
+#!/bin/bash
+
+source "$(dirname -- "${BASH_SOURCE[0]}")/.env"
+
+payload=$(cat << 'EOF'
+SELECT TRUE WHERE assert(CAST(@id AS INTEGER) > 1, 'id must be greater than 1') IS NULL;
+EOF
+)
+
+# If you don't want to  return a value (i.e. just checking before a statement) simply use:
+# SELECT assert(CAST(@id AS INTEGER) > 1, 'id must be greater than 1');
+
+curl -s -c "$BASE_DIR/cookies" -b "$BASE_DIR/cookies" "http://$SERVER_HOST/api/exec?id=1" \
+     -H "Content-Type: application/sql" \
+     -d "$payload" | jq -M
+
