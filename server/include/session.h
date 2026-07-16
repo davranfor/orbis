@@ -9,7 +9,7 @@
 
 #define SESSION_SIZE 128
 
-enum { SESSION_USER, SESSION_ROLE, SESSION_TOKEN, SESSION_VALUE };
+enum { SESSION_USER, SESSION_ROLE, SESSION_TOKEN };
 
 typedef struct { int user, role; char *token; } session_t;
 
