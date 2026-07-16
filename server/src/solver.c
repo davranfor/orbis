@@ -405,6 +405,16 @@ static int bind_session(sqlite3_stmt *stmt, const json_t *session)
             return 0;
         }
     }
+    if ((index = sqlite3_bind_parameter_index(stmt, "$SESSION")) != 0)
+    {
+        char *value = session->child[SESSION_VALUE].string;
+
+        status = sqlite3_bind_pointer(stmt, index, value, "$SESSION", NULL);
+        if (status != SQLITE_OK)
+        {
+            return 0;
+        }
+    }
     return 1;
 }
 
