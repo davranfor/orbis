@@ -495,7 +495,7 @@ static int handle_task(const json_t *request)
     {
         return HTTP_OK;
     }
-    if (!strcmp(path, "POST /api/exec"))
+    if (!strcmp(path, "GET /api/exec") || !strcmp(path, "POST /api/exec"))
     {
         return handle_stmt(request, json_text(json_find(request, "content")));
     }
