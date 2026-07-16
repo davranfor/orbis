@@ -70,7 +70,7 @@ GET /api/users
   (property "path")
   (property "params"
     (object
-      (property "id" (string (minLength 1) (mask "099999")))
+      (property "id" (string (mask "099999")))
     )
   )
   (property "content" (null))
@@ -144,7 +144,7 @@ DELETE /api/users
   (property "path")
   (property "params"
     (object
-      (property "id" (string (minLength 1) (mask "099999")))
+      (property "id" (string (mask "099999")))
     )
   )
   (property "content" (null))
