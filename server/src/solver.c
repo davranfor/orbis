@@ -589,8 +589,8 @@ static const endpoint_t *validate_request(const json_t *request, int *status)
 
 static const buffer_t *solve_request(const json_t *request, int status)
 {
-    const char *session = json_pointer(request, "/session/value")->string;
-    char cookie[256] = "";
+    const char *session = json_find(request, "session")->child[SESSION_VALUE].string;
+    char cookie[256];
 
     if (session[0] != '\0')
     {
@@ -616,6 +616,10 @@ static const buffer_t *solve_request(const json_t *request, int status)
             "Set-Cookie: session=%s; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=31536000\r\n",
             session);
 #endif
+    }
+    else
+    {
+        cookie[0] = '\0';
     }
 
 #define write_headers(response) \
