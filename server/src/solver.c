@@ -534,7 +534,7 @@ typedef struct
 
 static void on_validate_request(const json_t *node, void *data)
 {
-    const char *path = json_text(json_pointer(node, "/path"));
+    const char *path = json_text(json_find(node, "path"));
     context_t *context = data;
 
     if (!strncmp(path, "/params", 7))
@@ -589,7 +589,7 @@ static const endpoint_t *validate_request(const json_t *request, int *status)
 
 static const buffer_t *solve_request(const json_t *request, int status)
 {
-    const char *session = json_find(request, "session")->child[SESSION_VALUE].string;
+    const char *session = json_pointer(request, "/session/value")->string;
     char cookie[256];
 
     if (session[0] != '\0')
