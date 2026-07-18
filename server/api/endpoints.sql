@@ -44,7 +44,7 @@ POST /api/logout
   )
 )
 -- @stmt
-UPDATE users SET token = '' WHERE id = $USER;
+UPDATE users SET token = delete_token() WHERE id = $USER;
 
 -- @path
 GET /api/users

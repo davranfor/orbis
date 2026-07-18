@@ -103,3 +103,12 @@ const char *session_build(session_t *session, int user, int role, const char *to
     return session->token;
 }
 
+const char *session_clear(session_t *session)
+{
+    session->user = 0;
+    session->role = 0;
+    memset(session->token, 0, TOKEN_MAX_LENGTH);
+    snprintf(session->cookie, COOKIE_SIZE, "%s", COOKIE_CLEAR);
+    return session->token;
+}
+

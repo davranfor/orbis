@@ -115,6 +115,17 @@ static void new_token(sqlite3_context *context, int argc, sqlite3_value **argv)
     sqlite3_result_text(context, value, -1, SQLITE_STATIC);
 }
 
+static void delete_token(sqlite3_context *context, int argc, sqlite3_value **argv)
+{
+    (void)argv;
+    if (argc != 0)
+    {
+        sqlite3_result_error(context, "delete_token() doesn't take arguments", -1);
+        return;
+    }
+    sqlite3_result_text(context, session_clear(session), -1, SQLITE_STATIC);
+}
+
 static void new_password(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
     (void)argv;
@@ -176,6 +187,7 @@ static void load(void)
 
     db_create_function(db_assert, "assert", 2);
     db_create_function(new_token, "new_token", 3);
+    db_create_function(delete_token, "delete_token", 0);
     db_create_function(new_password, "new_password", 0);
 }
 

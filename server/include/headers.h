@@ -7,6 +7,8 @@
 #ifndef HEADERS_H
 #define HEADERS_H
 
+#include "session.h"
+
 #define HEADER_OK \
     "HTTP/1.1 200 OK\r\n" \
     "Cache-Control: no-store\r\n"
@@ -23,17 +25,10 @@
     "HTTP/1.1 400 Bad Request\r\n" \
     "Cache-Control: no-store\r\n"
 
-#ifdef ALLOW_INSECURE_TOKEN
 #define HEADER_UNAUTHORIZED \
     "HTTP/1.1 401 Unauthorized\r\n" \
     "Cache-Control: no-store\r\n" \
-    "Set-Cookie: session=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/; HttpOnly; SameSite=Strict\r\n"
-#else
-#define HEADER_UNAUTHORIZED \
-    "HTTP/1.1 401 Unauthorized\r\n" \
-    "Cache-Control: no-store\r\n" \
-    "Set-Cookie: session=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/; Secure; HttpOnly; SameSite=Strict\r\n"
-#endif
+    COOKIE_CLEAR
 
 #define HEADER_FORBIDDEN \
     "HTTP/1.1 403 Forbidden\r\n" \
