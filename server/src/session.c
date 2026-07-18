@@ -81,8 +81,8 @@ const char *session_build(session_t *session, int user, int role, const char *to
 #ifdef ALLOW_INSECURE_TOKEN
     /**
      * For testing purposes where you can not provide an SSL connection:
-     * Some browsers (i.e. Safari) doesn't send a Secure token on non-https connections even
-     * for testing with localhost (https requires 'Secure;')
+     * Some browsers (i.e. Safari) doesn't send a Secure token on non-https
+     * connections even for testing with localhost (https requires 'Secure;')
      * You can set an environment variable on .zshrc or .bashrc:
      * export ALLOW_INSECURE_TOKEN=1
      * Then, inside the Makefile, there is a rule to add a preprocessor flag:
@@ -93,11 +93,13 @@ const char *session_build(session_t *session, int user, int role, const char *to
      * Max-Age = 1 year
      */
     snprintf(session->cookie, COOKIE_SIZE,
-        "Set-Cookie: session=%d:%d:%s; Path=/; HttpOnly; SameSite=Strict; Max-Age=31536000\r\n",
+        "Set-Cookie: session=%d:%d:%s; "
+        "Path=/; HttpOnly; SameSite=Strict; Max-Age=31536000\r\n",
         session->user, session->role, session->token);
 #else
     snprintf(session->cookie, COOKIE_SIZE,
-        "Set-Cookie: session=%d:%d:%s; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=31536000\r\n",
+        "Set-Cookie: session=%d:%d:%s; "
+        "Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=31536000\r\n",
         session->user, session->role, session->token);
 #endif
     return session->token;
@@ -105,8 +107,6 @@ const char *session_build(session_t *session, int user, int role, const char *to
 
 const char *session_clear(session_t *session)
 {
-    session->user = 0;
-    session->role = 0;
     memset(session->token, 0, TOKEN_MAX_LENGTH);
     snprintf(session->cookie, COOKIE_SIZE, "%s", COOKIE_CLEAR);
     return session->token;
