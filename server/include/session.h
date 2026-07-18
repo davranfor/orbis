@@ -7,14 +7,14 @@
 #ifndef SESSION_H
 #define SESSION_H
 
-#define TOKEN_LENGTH 64
+#define TOKEN_MAX_LENGTH 64
 #define COOKIE_SIZE 256
 
 typedef struct
 {
     int user;
     int role;
-    char token[TOKEN_LENGTH + 1];
+    char token[TOKEN_MAX_LENGTH + 1];
     char cookie[COOKIE_SIZE];
 } session_t;
 

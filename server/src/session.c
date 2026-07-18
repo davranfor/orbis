@@ -44,13 +44,13 @@ int session_parse(session_t *session, const char *path, char *str)
                 }
                 str = ptr + 1;
             }
-            if (end - str < TOKEN_LENGTH)
+            if (end - str < TOKEN_MAX_LENGTH)
             {
                 return 0;
             }
             session->user = num[0];
             session->role = num[1];
-            memcpy(session->token, str, TOKEN_LENGTH);
+            memcpy(session->token, str, TOKEN_MAX_LENGTH);
             return 1;
         }
     }
@@ -63,11 +63,11 @@ const char *session_build(session_t *session, int user, int role, const char *to
     session->role = role;
     if (token[0] != '\0')
     {
-        snprintf(session->token, TOKEN_LENGTH + 1, "%s", token);
+        snprintf(session->token, TOKEN_MAX_LENGTH + 1, "%s", token);
     }
     else
     {
-        unsigned char bytes[(TOKEN_LENGTH + 1) / 2];
+        unsigned char bytes[(TOKEN_MAX_LENGTH + 1) / 2];
 
         if (!rand_bytes(bytes, sizeof bytes))
         {
