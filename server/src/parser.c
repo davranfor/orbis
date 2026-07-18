@@ -273,20 +273,10 @@ const buffer_t *parser_handle(char *message)
                         .key = "role",
                         .number = request.session.role,
                         .type = JSON_INTEGER
-                    },
-                    {
-                        .key = "token",
-                        .string = request.session.token,
-                        .type = JSON_STRING
-                    },
-                    {
-                        .key = "value",
-                        .string = (char [SESSION_SIZE]){ 0 },
-                        .type = JSON_STRING
                     }
                 },
                 .type = JSON_OBJECT,
-                .size = 4 
+                .size = 2
             }
         },
         .type = JSON_OBJECT,
@@ -298,6 +288,6 @@ const buffer_t *parser_handle(char *message)
     {
         return static_bad_request();
     }
-    return solver_handle(&node);
+    return solver_handle(&request.session, &node);
 }
 

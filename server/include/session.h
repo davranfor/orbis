@@ -7,14 +7,19 @@
 #ifndef SESSION_H
 #define SESSION_H
 
-#define SESSION_SIZE 128
+#define TOKEN_LENGTH 64
+#define COOKIE_SIZE 256
 
-enum { SESSION_USER, SESSION_ROLE, SESSION_TOKEN, SESSION_VALUE };
-
-typedef struct { int user, role; char *token; } session_t;
+typedef struct
+{
+    int user;
+    int role;
+    char token[TOKEN_LENGTH + 1];
+    char cookie[COOKIE_SIZE];
+} session_t;
 
 int session_parse(session_t *, const char *, char *);
-int session_create(int, int, const char *, char *);
+const char *session_build(session_t *, int, int, const char *);
 
 #endif
 

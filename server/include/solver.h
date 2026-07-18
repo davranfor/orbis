@@ -9,10 +9,11 @@
 
 #include <orbis/clib_buffer.h>
 #include <orbis/json_header.h>
+#include "session.h"
 
 void solver_load(void);
 void solver_reload(void);
-const buffer_t *solver_handle(const json_t *);
+const buffer_t *solver_handle(session_t *, const json_t *);
 
 #endif
 

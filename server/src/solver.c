@@ -13,11 +13,9 @@
 #include <orbis/json_private.h>
 #include <orbis/json_reader.h>
 #include <orbis/json_buffer.h>
-#include <orbis/json_pointer.h>
 #include <orbis/json_validator.h>
 #include <sqlite3.h>
 #include "headers.h"
-#include "session.h"
 #include "loader.h"
 #include "router.h"
 #include "static.h"
@@ -37,6 +35,8 @@ enum { GET = 1, POST, PUT, PATCH, DELETE };
 
 static sqlite3 *db;
 static sqlite3_stmt *auth;
+
+static session_t *session;
 static buffer_t buffer;
 
 static int load_db(const char *metadata)
@@ -96,23 +96,23 @@ static void db_assert(sqlite3_context *context, int argc, sqlite3_value **argv)
 
 static void new_token(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
-    if (argc != 4)
+    if (argc != 3)
     {
-        sqlite3_result_error(context, "new_token() takes 4 arguments", -1);
+        sqlite3_result_error(context, "new_token() takes 3 arguments", -1);
         return;
     }
 
     int user = sqlite3_value_int(argv[0]);
     int role = sqlite3_value_int(argv[1]);
-    const unsigned char *token = sqlite3_value_text(argv[2]);
-    char *session = sqlite3_value_pointer(argv[3], "$SESSION");
+    const char *token = (const char *)sqlite3_value_text(argv[2]);
+    const char *value = session_build(session, user, role, token);
 
-    if (!session_create(user, role, (const char *)token, session))
+    if (value == NULL)
     {
         sqlite3_result_error(context, "new_token() failed", -1);
         return;
     }
-    sqlite3_result_text(context, strrchr(session, ':') + 1, -1, SQLITE_STATIC);
+    sqlite3_result_text(context, value, -1, SQLITE_STATIC);
 }
 
 static void new_password(sqlite3_context *context, int argc, sqlite3_value **argv)
@@ -175,7 +175,7 @@ static void load(void)
     } while (0)
 
     db_create_function(db_assert, "assert", 2);
-    db_create_function(new_token, "new_token", 4);
+    db_create_function(new_token, "new_token", 3);
     db_create_function(new_password, "new_password", 0);
 }
 
@@ -233,23 +233,19 @@ static void write_issue(const json_t *node)
     json_buffer_encode(&buffer, &message, 2);
 }
 
-static int authorized_request(const json_t *request)
+static int init_session(session_t *user_session)
 {
-    const json_t *session = json_find(request, "session");
-    int user = (int)session->child[SESSION_USER].number;
-    int role = (int)session->child[SESSION_ROLE].number;
-    const char *token = session->child[SESSION_TOKEN].string;
-
-    if (role == 0)
+    session = user_session;
+    if (session->role == 0)
     {
         return 1;
     }
 
     int step, authorized = 0;
 
-    if ((sqlite3_bind_int(auth, 1, user) != SQLITE_OK) ||
-        (sqlite3_bind_int(auth, 2, role) != SQLITE_OK) ||
-        (sqlite3_bind_text(auth, 3, token, -1, SQLITE_STATIC) != SQLITE_OK))
+    if ((sqlite3_bind_int(auth, 1, session->user) != SQLITE_OK) ||
+        (sqlite3_bind_int(auth, 2, session->role) != SQLITE_OK) ||
+        (sqlite3_bind_text(auth, 3, session->token, -1, SQLITE_STATIC) != SQLITE_OK))
     {
         goto done;
     }
@@ -371,46 +367,20 @@ static int bind_content(sqlite3_stmt *stmt, const json_t *content)
     }
 }
 
-static int bind_session(sqlite3_stmt *stmt, const json_t *session)
+static int bind_session(sqlite3_stmt *stmt)
 {
-    int index, status;
+    int index;
 
     if ((index = sqlite3_bind_parameter_index(stmt, "$USER")) != 0)
     {
-        int user = (int)session->child[SESSION_USER].number;
-
-        status = sqlite3_bind_int(stmt, index, user);
-        if (status != SQLITE_OK)
+        if (sqlite3_bind_int(stmt, index, session->user) != SQLITE_OK)
         {
             return 0;
         }
     }
     if ((index = sqlite3_bind_parameter_index(stmt, "$ROLE")) != 0)
     {
-        int role = (int)session->child[SESSION_ROLE].number;
-
-        status = sqlite3_bind_int(stmt, index, role);
-        if (status != SQLITE_OK)
-        {
-            return 0;
-        }
-    }
-    if ((index = sqlite3_bind_parameter_index(stmt, "$TOKEN")) != 0)
-    {
-        char *value = session->child[SESSION_TOKEN].string;
-
-        status = sqlite3_bind_text(stmt, index, value, -1, SQLITE_STATIC);
-        if (status != SQLITE_OK)
-        {
-            return 0;
-        }
-    }
-    if ((index = sqlite3_bind_parameter_index(stmt, "$SESSION")) != 0)
-    {
-        char *value = session->child[SESSION_VALUE].string;
-
-        status = sqlite3_bind_pointer(stmt, index, value, "$SESSION", NULL);
-        if (status != SQLITE_OK)
+        if (sqlite3_bind_int(stmt, index, session->role) != SQLITE_OK)
         {
             return 0;
         }
@@ -436,7 +406,7 @@ static int handle_stmt(const json_t *request, const char *sql)
         if ((sqlite3_prepare_v2(db, sql, -1, &stmt, &sql) != SQLITE_OK) ||
             !bind_params(stmt, json_find(request, "params")) ||
             !bind_content(stmt, json_find(request, "content")) ||
-            !bind_session(stmt, json_find(request, "session")))
+            !bind_session(stmt))
         {
             buffer_reset(&buffer);
             write_error("Internal Server Error", sqlite3_errmsg(db));
@@ -587,51 +557,19 @@ static const endpoint_t *validate_request(const json_t *request, int *status)
     return context.endpoint;
 }
 
-static const buffer_t *solve_request(const json_t *request, int status)
+static const buffer_t *solve_request(int status)
 {
-    const char *session = json_pointer(request, "/session/value")->string;
-    char cookie[256];
-
-    if (session[0] != '\0')
-    {
-#ifdef ALLOW_INSECURE_TOKEN
-        /**
-         * For testing purposes where you can not provide an SSL connection:
-         * Some browsers (i.e. Safari) doesn't send a Secure token on non-https connections even
-         * for testing with localhost (https requires 'Secure;')
-         * You can set an environment variable on .zshrc or .bashrc:
-         * export ALLOW_INSECURE_TOKEN=1
-         * Then, inside the Makefile, there is a rule to add a preprocessor flag:
-         * ifdef ALLOW_INSECURE_TOKEN
-         * CFLAGS += -DALLOW_INSECURE_TOKEN
-         * endif
-         * Depending on this flag, the 'Secure;' flag is sent or not to the client.
-         * Max-Age = 1 year
-         */
-        snprintf(cookie, sizeof cookie,
-            "Set-Cookie: session=%s; Path=/; HttpOnly; SameSite=Strict; Max-Age=31536000\r\n",
-            session);
-#else
-        snprintf(cookie, sizeof cookie,
-            "Set-Cookie: session=%s; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=31536000\r\n",
-            session);
-#endif
-    }
-    else
-    {
-        cookie[0] = '\0';
-    }
+    char headers[1024];
 
 #define write_headers(response) \
     snprintf(headers, sizeof headers, response "%s" \
         "Content-Type: application/json\r\n" \
         "Content-Length: %zu\r\n\r\n", \
-        cookie, buffer.length)
+        session->cookie, buffer.length)
 #define write_headers_no_content(response) \
-    snprintf(headers, sizeof headers, response "%s\r\n", cookie)
+    snprintf(headers, sizeof headers, response "%s\r\n", \
+        session->cookie)
  
-    char headers[1024];
-
     switch (status)
     {
         case HTTP_OK:
@@ -667,9 +605,9 @@ static const buffer_t *solve_request(const json_t *request, int status)
     return buffer.length ? &buffer : static_server_error();
 }
 
-const buffer_t *solver_handle(const json_t *request)
+const buffer_t *solver_handle(session_t *user_session, const json_t *request)
 {
-    if (!authorized_request(request))
+    if (!init_session(user_session))
     {
         return static_unauthorized();
     }
@@ -680,13 +618,13 @@ const buffer_t *solver_handle(const json_t *request)
 
     if (endpoint == NULL)
     {
-        return solve_request(request, status);
+        return solve_request(status);
     }
 
     const char *stmt = endpoint->stmt;
 
     return stmt != NULL
-        ? solve_request(request, handle_stmt(request, stmt))
-        : solve_request(request, handle_task(request));
+        ? solve_request(handle_stmt(request, stmt))
+        : solve_request(handle_task(request));
 }
 

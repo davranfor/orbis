@@ -10,8 +10,6 @@
 #include <orbis/clib_math.h>
 #include "session.h"
 
-#define TOKEN_SIZE 64
-
 /**
  * Parse cookie in the form:
  * Cookie: [third-party-cookie;] session=<int>:<int>:<hex 64 bytes> [third-party-cookie]
@@ -20,7 +18,6 @@ int session_parse(session_t *session, const char *path, char *str)
 {
     if (!strcmp(path, "POST /api/login"))
     {
-        session->token = "";
         return 1;
     }
     if ((str = strstr(str, "\r\nCookie:")))
@@ -47,43 +44,62 @@ int session_parse(session_t *session, const char *path, char *str)
                 }
                 str = ptr + 1;
             }
-            if (end - str < TOKEN_SIZE)
+            if (end - str < TOKEN_LENGTH)
             {
                 return 0;
             }
-            str[TOKEN_SIZE] = '\0';
             session->user = num[0];
             session->role = num[1];
-            session->token = str;
+            memcpy(session->token, str, TOKEN_LENGTH);
             return 1;
         }
     }
     return 0;
 }
 
-int session_create(int user, int role, const char *token, char *session)
+const char *session_build(session_t *session, int user, int role, const char *token)
 {
+    session->user = user;
+    session->role = role;
     if (token[0] != '\0')
     {
-        snprintf(session, SESSION_SIZE, "%d:%d:%s", user, role, token);
+        snprintf(session->token, TOKEN_LENGTH + 1, "%s", token);
     }
     else
     {
-        unsigned char bytes[(TOKEN_SIZE + 1) / 2];
+        unsigned char bytes[(TOKEN_LENGTH + 1) / 2];
 
         if (!rand_bytes(bytes, sizeof bytes))
         {
-            return 0;
+            return NULL;
         }
-
-        char *output = session + snprintf(session, SESSION_SIZE, "%d:%d:", user, role);
-
         for (size_t i = 0; i < sizeof bytes; i++)
         {
-            snprintf(output + (i * 2), 3, "%02x", bytes[i]);
+            snprintf(session->token + (i * 2), 3, "%02x", bytes[i]);
         }
-        output[TOKEN_SIZE] = '\0';
     }
-    return 1;
+#ifdef ALLOW_INSECURE_TOKEN
+    /**
+     * For testing purposes where you can not provide an SSL connection:
+     * Some browsers (i.e. Safari) doesn't send a Secure token on non-https connections even
+     * for testing with localhost (https requires 'Secure;')
+     * You can set an environment variable on .zshrc or .bashrc:
+     * export ALLOW_INSECURE_TOKEN=1
+     * Then, inside the Makefile, there is a rule to add a preprocessor flag:
+     * ifdef ALLOW_INSECURE_TOKEN
+     * CFLAGS += -DALLOW_INSECURE_TOKEN
+     * endif
+     * Depending on this flag, the 'Secure;' flag is sent or not to the client.
+     * Max-Age = 1 year
+     */
+    snprintf(session->cookie, COOKIE_SIZE,
+        "Set-Cookie: session=%d:%d:%s; Path=/; HttpOnly; SameSite=Strict; Max-Age=31536000\r\n",
+        session->user, session->role, session->token);
+#else
+    snprintf(session->cookie, COOKIE_SIZE,
+        "Set-Cookie: session=%d:%d:%s; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=31536000\r\n",
+        session->user, session->role, session->token);
+#endif
+    return session->token;
 }
 
