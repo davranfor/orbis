@@ -35,7 +35,6 @@ enum { GET = 1, POST, PUT, PATCH, DELETE };
 
 static sqlite3 *db;
 static sqlite3_stmt *auth;
-
 static session_t *session;
 static buffer_t buffer;
 
@@ -210,6 +209,35 @@ void solver_reload(void)
     load();
 }
 
+static int handle_session(session_t *user_session)
+{
+    session = user_session;
+    if (session->role == 0)
+    {
+        return 1;
+    }
+
+    int step, authorized = 0;
+
+    if ((sqlite3_bind_int(auth, 1, session->user) != SQLITE_OK) ||
+        (sqlite3_bind_int(auth, 2, session->role) != SQLITE_OK) ||
+        (sqlite3_bind_text(auth, 3, session->token, -1, SQLITE_STATIC) != SQLITE_OK))
+    {
+        goto done;
+    }
+    while ((step = sqlite3_step(auth)) == SQLITE_ROW)
+    {
+        authorized = sqlite3_column_int(auth, 0);
+    }
+    if (step != SQLITE_DONE)
+    {
+        authorized = 0;
+    }
+done:
+    sqlite3_reset(auth);
+    return authorized;
+}
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 static void write_error(const char *title, const char *issue)
@@ -243,35 +271,6 @@ static void write_issue(const json_t *node)
     };
 
     json_buffer_encode(&buffer, &message, 2);
-}
-
-static int init_session(session_t *user_session)
-{
-    session = user_session;
-    if (session->role == 0)
-    {
-        return 1;
-    }
-
-    int step, authorized = 0;
-
-    if ((sqlite3_bind_int(auth, 1, session->user) != SQLITE_OK) ||
-        (sqlite3_bind_int(auth, 2, session->role) != SQLITE_OK) ||
-        (sqlite3_bind_text(auth, 3, session->token, -1, SQLITE_STATIC) != SQLITE_OK))
-    {
-        goto done;
-    }
-    while ((step = sqlite3_step(auth)) == SQLITE_ROW)
-    {
-        authorized = sqlite3_column_int(auth, 0);
-    }
-    if (step != SQLITE_DONE)
-    {
-        authorized = 0;
-    }
-done:
-    sqlite3_reset(auth);
-    return authorized;
 }
 
 static int bind_params(sqlite3_stmt *stmt, const json_t *params)
@@ -373,9 +372,12 @@ static int bind_content(sqlite3_stmt *stmt, const json_t *content)
 {
     switch (content->type)
     {
-        case JSON_OBJECT: return bind_content_as_object(stmt, content);
-        case JSON_ARRAY: return bind_content_as_array(stmt, content);
-        default: return 1;
+        case JSON_OBJECT:
+            return bind_content_as_object(stmt, content);
+        case JSON_ARRAY:
+            return bind_content_as_array(stmt, content);
+        default:
+            return 1;
     }
 }
 
@@ -469,7 +471,7 @@ error:
     return error_status;
 }
 
-static int handle_task(const json_t *request)
+static int handle_path(const json_t *request)
 {
     const char *path = json_string(json_find(request, "path"));
 
@@ -571,7 +573,7 @@ static const endpoint_t *validate_request(const json_t *request, int *status)
 
 static const buffer_t *solve_request(int status)
 {
-    char headers[1024];
+    char headers[512];
 
 #define write_headers(response) \
     snprintf(headers, sizeof headers, response "%s" \
@@ -619,7 +621,7 @@ static const buffer_t *solve_request(int status)
 
 const buffer_t *solver_handle(session_t *user_session, const json_t *request)
 {
-    if (!init_session(user_session))
+    if (!handle_session(user_session))
     {
         return static_unauthorized();
     }
@@ -637,6 +639,6 @@ const buffer_t *solver_handle(session_t *user_session, const json_t *request)
 
     return stmt != NULL
         ? solve_request(handle_stmt(request, stmt))
-        : solve_request(handle_task(request));
+        : solve_request(handle_path(request));
 }
 
