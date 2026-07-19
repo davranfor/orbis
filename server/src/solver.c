@@ -427,6 +427,10 @@ static int handle_stmt(const json_t *request, const char *sql)
             error_status = HTTP_SERVER_ERROR;
             goto error;
         }
+        if (stmt == NULL)
+        {
+            continue;
+        }
 
         int step;
 
