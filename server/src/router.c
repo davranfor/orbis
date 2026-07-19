@@ -301,7 +301,7 @@ void router_reload(void)
     load();
 }
 
-const endpoint_t *router_search(char *path, int index)
+const endpoint_t *router_search(const char *path, int index)
 {
     const endpoint_t endpoint = { .path = path, .index = index };
 

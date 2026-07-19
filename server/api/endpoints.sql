@@ -9,7 +9,6 @@ SELECT 1 FROM users WHERE id = ? AND role = ? AND token = ?;
 POST /api/login
 -- @eval
 (object
-  (property "path")
   (property "params" (null))
   (property "content"
     (object
@@ -33,7 +32,6 @@ WHERE email = :email AND password = :password;
 POST /api/logout
 -- @eval
 (object
-  (property "path")
   (property "params" (null))
   (property "content" (null))
   (property "session")
@@ -45,7 +43,6 @@ UPDATE users SET token = delete_token() WHERE id = $USER;
 GET /api/users
 -- @eval
 (object
-  (property "path")
   (property "params" (null))
   (property "content" (null))
   (property "session"
@@ -62,7 +59,6 @@ SELECT json_group_array(json_array(id, name, email)) FROM users;
 GET /api/users
 -- @eval
 (object
-  (property "path")
   (property "params"
     (object
       (property "id" (string (mask "099999")))
@@ -83,7 +79,6 @@ SELECT json_array(id, name, email) FROM users WHERE id = @id;
 POST /api/users
 -- @eval
 (object
-  (property "path")
   (property "params" (null))
   (property "content"
     (object
@@ -109,7 +104,6 @@ VALUES (:id, :role, :name, :email, :password);
 PATCH /api/users
 -- @eval
 (object
-  (property "path")
   (property "params"
     (object
       (property "id" (string (mask "099999")))
@@ -136,7 +130,6 @@ UPDATE users SET role = :role, name = :name, email = :email WHERE id = @id;
 DELETE /api/users
 -- @eval
 (object
-  (property "path")
   (property "params"
     (object
       (property "id" (string (mask "099999")))
@@ -164,7 +157,6 @@ none
 GET /api/exec
 -- @eval
 (object
-  (property "path")
   (property "params")
   (property "content" (string (minLength 1) (maxLength 4096)))
   (property "session"
@@ -181,7 +173,6 @@ none
 POST /api/exec
 -- @eval
 (object
-  (property "path")
   (property "params")
   (property "content" (string (minLength 1) (maxLength 4096)))
   (property "session"
@@ -198,7 +189,6 @@ none
 POST /api/backup
 -- @eval
 (object
-  (property "path")
   (property "params" (null))
   (property "content" (null))
   (property "session"
@@ -215,7 +205,6 @@ none
 POST /api/vacuum
 -- @eval
 (object
-  (property "path")
   (property "params" (null))
   (property "content" (null))
   (property "session"
@@ -232,7 +221,6 @@ none
 POST /api/reload
 -- @eval
 (object
-  (property "path")
   (property "params" (null))
   (property "content" (null))
   (property "session"
@@ -249,7 +237,6 @@ none
 POST /api/stop
 -- @eval
 (object
-  (property "path")
   (property "params" (null))
   (property "content" (null))
   (property "session"

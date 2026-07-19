@@ -402,10 +402,10 @@ static int bind_session(sqlite3_stmt *stmt)
     return 1;
 }
 
-static int handle_stmt(const json_t *request, const char *sql)
+static int handle_stmt(const json_t *request, const char *path, const char *sql)
 {
     int total_changes = sqlite3_total_changes(db);
-    int method = router_method(json_find(request, "path")->string);
+    int method = router_method(path);
 
     if (method != GET)
     {
@@ -475,17 +475,15 @@ error:
     return error_status;
 }
 
-static int handle_path(const json_t *request)
+static int handle_path(const json_t *request, const char *path)
 {
-    const char *path = json_string(json_find(request, "path"));
-
     if (!strcmp(path, "GET /api/auth"))
     {
         return HTTP_OK;
     }
     if (!strcmp(path, "GET /api/exec") || !strcmp(path, "POST /api/exec"))
     {
-        return handle_stmt(request, json_text(json_find(request, "content")));
+        return handle_stmt(request, path, json_text(json_find(request, "content")));
     }
     if (!strcmp(path, "POST /api/backup"))
     {
@@ -515,8 +513,8 @@ static int handle_path(const json_t *request)
 typedef struct
 {
     const endpoint_t *endpoint;
+    const char *path;
     int *status;
-    char *path;
     int index;
 } context_t;
 
@@ -549,9 +547,9 @@ static void on_validate_request(const json_t *node, void *data)
     }
 }
 
-static const endpoint_t *validate_request(const json_t *request, int *status)
+static const endpoint_t *validate_request(const json_t *request,
+    const char *path, int *status)
 {
-    char *path = json_string(json_find(request, "path")); 
     const endpoint_t *endpoint = router_search(path, 0);
 
     if (endpoint == NULL)
@@ -561,7 +559,7 @@ static const endpoint_t *validate_request(const json_t *request, int *status)
         return NULL;
     }
 
-    context_t context = { endpoint, status, path, 0 };
+    context_t context = { endpoint, path, status, 0 };
     const void *code = endpoint->code;
 
     while (!json_validate(request, code, on_validate_request, &context))
@@ -623,7 +621,8 @@ static const buffer_t *solve_request(int status)
     return buffer.length ? &buffer : static_server_error();
 }
 
-const buffer_t *solver_handle(session_t *user_session, const json_t *request)
+const buffer_t *solver_handle(const char *path, session_t *user_session,
+    const json_t *request)
 {
     if (!handle_session(user_session))
     {
@@ -632,7 +631,7 @@ const buffer_t *solver_handle(session_t *user_session, const json_t *request)
     buffer_reset(&buffer);
 
     int status = HTTP_BAD_REQUEST;
-    const endpoint_t *endpoint = validate_request(request, &status);
+    const endpoint_t *endpoint = validate_request(request, path, &status);
 
     if (endpoint == NULL)
     {
@@ -642,7 +641,7 @@ const buffer_t *solver_handle(session_t *user_session, const json_t *request)
     const char *stmt = endpoint->stmt;
 
     return stmt != NULL
-        ? solve_request(handle_stmt(request, stmt))
-        : solve_request(handle_path(request));
+        ? solve_request(handle_stmt(request, path, stmt))
+        : solve_request(handle_path(request, path));
 }
 

@@ -9,16 +9,15 @@
 
 typedef struct
 {
-    char *path;
+    const char *path, *stmt;
     void *code;
-    char *stmt;
     int index;
 } endpoint_t;
 
 int router_method(const char *);
 void router_load(void);
 void router_reload(void);
-const endpoint_t *router_search(char *, int);
+const endpoint_t *router_search(const char *, int);
 
 #endif
 

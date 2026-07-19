@@ -248,11 +248,6 @@ const buffer_t *parser_handle(char *message)
         .child = (json_t [])
         {
             {
-                .key = "path",
-                .string = request.path,
-                .type = JSON_STRING
-            },
-            {
                 .key = "params",
                 .child = (json_t [REQUEST_MAX_PARAMS]){{ 0 }},
             },
@@ -280,14 +275,14 @@ const buffer_t *parser_handle(char *message)
             }
         },
         .type = JSON_OBJECT,
-        .size = 4
+        .size = 3
     };
 
-    if (!parse_params(&request, &node.child[1]) ||
-        !parse_fields(&request, &node.child[2]))
+    if (!parse_params(&request, &node.child[0]) ||
+        !parse_fields(&request, &node.child[1]))
     {
         return static_bad_request();
     }
-    return solver_handle(&request.session, &node);
+    return solver_handle(request.path, &request.session, &node);
 }
 

@@ -13,7 +13,7 @@
 
 void solver_load(void);
 void solver_reload(void);
-const buffer_t *solver_handle(session_t *, const json_t *);
+const buffer_t *solver_handle(const char *, session_t *, const json_t *);
 
 #endif
 
