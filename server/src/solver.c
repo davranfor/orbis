@@ -417,7 +417,13 @@ static int handle_stmt(const json_t *request, const char *path, const char *sql)
 
     while (sql && *sql)
     {
-        if ((sqlite3_prepare_v2(db, sql, -1, &stmt, &sql) != SQLITE_OK) ||
+        int prepared = sqlite3_prepare_v2(db, sql, -1, &stmt, &sql);
+
+        if ((prepared == SQLITE_OK) && (stmt == NULL))
+        {
+            continue;
+        }
+        if ((prepared != SQLITE_OK) ||
             !bind_params(stmt, json_find(request, "params")) ||
             !bind_content(stmt, json_find(request, "content")) ||
             !bind_session(stmt))
@@ -426,10 +432,6 @@ static int handle_stmt(const json_t *request, const char *path, const char *sql)
             write_error("Internal Server Error", sqlite3_errmsg(db));
             error_status = HTTP_SERVER_ERROR;
             goto error;
-        }
-        if (stmt == NULL)
-        {
-            continue;
         }
 
         int step;
