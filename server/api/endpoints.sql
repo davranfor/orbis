@@ -19,8 +19,8 @@ POST /api/login
   )
   (property "session"
     (object
+      (property "user")
       (property "role" (integer (enum 0 1 2 3)))
-      (etc)
     )
   )
 )
@@ -36,12 +36,7 @@ POST /api/logout
   (property "path")
   (property "params" (null))
   (property "content" (null))
-  (property "session"
-    (object
-      (property "role" (integer (enum 1 2 3)))
-      (etc)
-    )
-  )
+  (property "session")
 )
 -- @stmt
 UPDATE users SET token = delete_token() WHERE id = $USER;
@@ -55,8 +50,8 @@ GET /api/users
   (property "content" (null))
   (property "session"
     (object
+      (property "user")
       (property "role" (integer (enum 1 2 3)))
-      (etc)
     )
   )
 )
@@ -76,8 +71,8 @@ GET /api/users
   (property "content" (null))
   (property "session"
     (object
+      (property "user")
       (property "role" (integer (enum 1 2 3)))
-      (etc)
     )
   )
 )
@@ -101,8 +96,8 @@ POST /api/users
   )
   (property "session"
     (object
+      (property "user")
       (property "role" (integer (enum 1 2 3)))
-      (etc)
     )
   )
 )
@@ -129,8 +124,8 @@ PATCH /api/users
   )
   (property "session"
     (object
+      (property "user")
       (property "role" (integer (enum 1 2 3)))
-      (etc)
     )
   )
 )
@@ -150,8 +145,8 @@ DELETE /api/users
   (property "content" (null))
   (property "session"
     (object
+      (property "user")
       (property "role" (integer (const 1)))
-      (etc)
     )
   )
 )
@@ -174,8 +169,8 @@ GET /api/exec
   (property "content" (string (minLength 1) (maxLength 4096)))
   (property "session"
     (object
+      (property "user")
       (property "role" (integer (const 1)))
-      (etc)
     )
   )
 )
@@ -191,8 +186,8 @@ POST /api/exec
   (property "content" (string (minLength 1) (maxLength 4096)))
   (property "session"
     (object
+      (property "user")
       (property "role" (integer (const 1)))
-      (etc)
     )
   )
 )
@@ -208,8 +203,8 @@ POST /api/backup
   (property "content" (null))
   (property "session"
     (object
+      (property "user")
       (property "role" (integer (const 1)))
-      (etc)
     )
   )
 )
@@ -225,8 +220,8 @@ POST /api/vacuum
   (property "content" (null))
   (property "session"
     (object
+      (property "user")
       (property "role" (integer (const 1)))
-      (etc)
     )
   )
 )
@@ -242,8 +237,8 @@ POST /api/reload
   (property "content" (null))
   (property "session"
     (object
+      (property "user")
       (property "role" (integer (const 1)))
-      (etc)
     )
   )
 )
@@ -259,8 +254,8 @@ POST /api/stop
   (property "content" (null))
   (property "session"
     (object
+      (property "user")
       (property "role" (integer (const 1)))
-      (etc)
     )
   )
 )
