@@ -453,7 +453,6 @@ static int handle_stmt(const json_t *request, const char *path, const char *sql)
             goto error;
         }
         sqlite3_finalize(stmt);
-        stmt = NULL;
     }
     if (method != GET)
     {
