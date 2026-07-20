@@ -383,14 +383,14 @@ static int bind_session(sqlite3_stmt *stmt)
 {
     int index;
 
-    if ((index = sqlite3_bind_parameter_index(stmt, "$USER")) != 0)
+    if ((index = sqlite3_bind_parameter_index(stmt, "$USER")))
     {
         if (sqlite3_bind_int(stmt, index, session->user) != SQLITE_OK)
         {
             return 0;
         }
     }
-    if ((index = sqlite3_bind_parameter_index(stmt, "$ROLE")) != 0)
+    if ((index = sqlite3_bind_parameter_index(stmt, "$ROLE")))
     {
         if (sqlite3_bind_int(stmt, index, session->role) != SQLITE_OK)
         {
