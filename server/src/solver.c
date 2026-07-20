@@ -336,13 +336,12 @@ static int bind_content_as_object(sqlite3_stmt *stmt, const json_t *content)
         int index;
 
         snprintf(key, sizeof key, ":%s", content->child[i].key);
-        if (!(index = sqlite3_bind_parameter_index(stmt, key)))
+        if ((index = sqlite3_bind_parameter_index(stmt, key)))
         {
-            continue;
-        }
-        if (!bind_child(stmt, index, &content->child[i]))
-        {
-            return 0;
+            if (!bind_child(stmt, index, &content->child[i]))
+            {
+                return 0;
+            }
         }
     }
     return 1;
@@ -352,17 +351,16 @@ static int bind_content_as_array(sqlite3_stmt *stmt, const json_t *content)
 {
     for (unsigned i = 0; i < content->size; i++)
     {
-        char key[16];
+        char key[8];
         int index;
 
         snprintf(key, sizeof key, "$%u", i + 1);
-        if ((index = sqlite3_bind_parameter_index(stmt, key)) == 0)
+        if ((index = sqlite3_bind_parameter_index(stmt, key)))
         {
-            continue;
-        }
-        if (!bind_child(stmt, index, &content->child[i]))
-        {
-            return 0;
+            if (!bind_child(stmt, index, &content->child[i]))
+            {
+                return 0;
+            }
         }
     }
     return 1;
