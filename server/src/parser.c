@@ -283,6 +283,6 @@ const buffer_t *parser_handle(char *message)
     {
         return static_bad_request();
     }
-    return solver_handle(request.path, &request.session, &node);
+    return solver_handle(&node, request.path, &request.session);
 }
 

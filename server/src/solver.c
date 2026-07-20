@@ -38,7 +38,7 @@ static sqlite3_stmt *auth;
 static session_t *session;
 static buffer_t buffer;
 
-static int load_db(const char *metadata)
+static int db_load(const char *metadata)
 {
     char *err = NULL;
 
@@ -93,7 +93,7 @@ static void db_assert(sqlite3_context *context, int argc, sqlite3_value **argv)
     sqlite3_result_error(context, message ? message : "Aborted", -1);
 }
 
-static void new_token(sqlite3_context *context, int argc, sqlite3_value **argv)
+static void db_new_token(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
     if (argc != 3)
     {
@@ -114,7 +114,7 @@ static void new_token(sqlite3_context *context, int argc, sqlite3_value **argv)
     sqlite3_result_text(context, value, -1, SQLITE_STATIC);
 }
 
-static void delete_token(sqlite3_context *context, int argc, sqlite3_value **argv)
+static void db_delete_token(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
     (void)argv;
     if (argc != 0)
@@ -125,7 +125,7 @@ static void delete_token(sqlite3_context *context, int argc, sqlite3_value **arg
     sqlite3_result_text(context, session_clear(session), -1, SQLITE_STATIC);
 }
 
-static void new_password(sqlite3_context *context, int argc, sqlite3_value **argv)
+static void db_new_password(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
     (void)argv;
     if (argc != 0)
@@ -166,7 +166,7 @@ static void load(void)
         perror("file_read");
         exit(EXIT_FAILURE);
     } 
-    if (!load_db(metadata))
+    if (!db_load(metadata))
     {
         free(metadata);
         exit(EXIT_FAILURE);
@@ -185,9 +185,9 @@ static void load(void)
     } while (0)
 
     db_create_function(db_assert, "assert", 2);
-    db_create_function(new_token, "new_token", 3);
-    db_create_function(delete_token, "delete_token", 0);
-    db_create_function(new_password, "new_password", 0);
+    db_create_function(db_new_token, "new_token", 3);
+    db_create_function(db_delete_token, "delete_token", 0);
+    db_create_function(db_new_password, "new_password", 0);
 }
 
 static void unload(void)
@@ -622,8 +622,8 @@ static const buffer_t *solve_request(int status)
     return buffer.length ? &buffer : static_server_error();
 }
 
-const buffer_t *solver_handle(const char *path, session_t *user_session,
-    const json_t *request)
+const buffer_t *solver_handle(const json_t *request, const char *path,
+    session_t *user_session)
 {
     if (!handle_session(user_session))
     {
