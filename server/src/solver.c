@@ -66,7 +66,7 @@ static int db_load(const char *metadata)
 
 static void db_exec(const char *sql)
 {
-    char *error;
+    char *error = NULL;
 
     if (sqlite3_exec(db, sql, NULL, NULL, &error) != SQLITE_OK)
     {
