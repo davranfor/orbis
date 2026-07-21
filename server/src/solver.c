@@ -40,12 +40,12 @@ static buffer_t buffer;
 
 static int db_load(const char *metadata)
 {
-    char *err = NULL;
+    char *error = NULL;
 
-    if (sqlite3_exec(db, metadata, NULL, NULL, &err) != SQLITE_OK)
+    if (sqlite3_exec(db, metadata, NULL, NULL, &error) != SQLITE_OK)
     {
-        fprintf(stderr, "metadata:\n%s\n", err);
-        sqlite3_free(err);
+        fprintf(stderr, "metadata:\n%s\n", error);
+        sqlite3_free(error);
         return 0;
     }
 
@@ -436,11 +436,11 @@ static int handle_stmt(const json_t *request, const char *path, const char *sql)
 
         while ((step = sqlite3_step(stmt)) == SQLITE_ROW)
         {
-            const unsigned char *text = sqlite3_column_text(stmt, 0);
+            const char *text = (const char *)sqlite3_column_text(stmt, 0);
 
             if (text != NULL)
             {
-                buffer_write(&buffer, (const char *)text);
+                buffer_write(&buffer, text);
             }
         }
         if (step != SQLITE_DONE)
