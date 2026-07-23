@@ -107,29 +107,21 @@ void date_add(int *year, int *month, int *day, int days)
 int date_diff(int year1, int month1, int day1, int year2, int month2, int day2)
 {
     static const int days[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
-    long days1 = (year1 * 365) + day1;
-    long days2 = (year2 * 365) + day2;
+    int days1 = (year1 * 365 + day1) + days[month1 - 1] + leap_count(year1, month1);
+    int days2 = (year2 * 365 + day2) + days[month2 - 1] + leap_count(year2, month2);
 
-    days1 += days[month1 - 1] + leap_count(year1, month1);
-    days2 += days[month2 - 1] + leap_count(year2, month2);
-    return (int)(days2 - days1);
+    return days2 - days1;
 }
 
 int is_date(int year, int month, int day)
 {
-    if ((month < 1) || (month > 12))
-    {
-        return 0;
-    }
-    if ((day < 1) || (day > days_in_month(year, month)))
-    {
-        return 0;
-    }
-    return 1;
+    return ((year >= 1) && (year <= 9999)) &&
+           ((month >= 1) && (month <= 12)) &&
+           ((day >= 1) && (day <= days_in_month(year, month)));
 }
 
 int is_leap(int year)
 {
     return ((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0);
 }
-
+ 
