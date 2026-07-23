@@ -183,16 +183,6 @@ int test_is_date_time(const char *str)
     return 0;
 }
 
-/* Extension: YYYY-MM-DD HH:MM:SS (support for HTML datetime-local) */
-int test_is_date_time_local(const char *str)
-{
-    if ((str = test_date(str)) && (*str == ' '))
-    {
-        return (str = test_time(str + 1)) && (str[0] == '\0');
-    }
-    return 0;
-}
-
 static const char *test_hostname(const char *str)
 {
     // Must start with a digit or alpha character
@@ -369,7 +359,6 @@ int test_match(const char *text, const char *pattern)
         !strcmp(pattern, "date") ? test_is_date :
         !strcmp(pattern, "time") ? test_is_time :
         !strcmp(pattern, "date-time") ? test_is_date_time :
-        !strcmp(pattern, "date-time-local") ? test_is_date_time_local :
         !strcmp(pattern, "hostname") ? test_is_hostname :
         !strcmp(pattern, "email") ? test_is_email :
         !strcmp(pattern, "ipv4") ? test_is_ipv4 :
