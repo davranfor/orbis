@@ -157,7 +157,7 @@ static const char *test_time(const char *str)
 
 static int is_time_suffix(const char *str)
 {
-    if (test_mask(str, "+09:00") || test_mask(str, "-09:00"))
+    if (test_mask(str, "+00:00") || test_mask(str, "-00:00"))
     {
         return (strtol(&str[1], NULL, 10) < 24)
             && (strtol(&str[4], NULL, 10) < 60);
