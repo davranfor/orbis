@@ -66,6 +66,13 @@ int day_of_year(int year, int month, int day)
     return days[is_leap(year)][month - 1] + day;
 }
 
+int julian_day(int year, int month, int day)
+{
+    static const int days[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
+
+    return (year * 365) + day + days[month - 1] + leap_count(year, month) + 1721060;
+}
+
 int week_of_month(int year, int month, int day)
 {
     return (day - ISO_day_of_week(year, month, day) + 10) / 7;
@@ -102,15 +109,6 @@ void date_add(int *year, int *month, int *day, int days)
     *year = tm.tm_year + 1900;
     *month = tm.tm_mon + 1;
     *day = tm.tm_mday;
-}
-
-int date_diff(int year1, int month1, int day1, int year2, int month2, int day2)
-{
-    static const int days[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
-    int days1 = (year1 * 365 + day1) + days[month1 - 1] + leap_count(year1, month1);
-    int days2 = (year2 * 365 + day2) + days[month2 - 1] + leap_count(year2, month2);
-
-    return days2 - days1;
 }
 
 int is_date(int year, int month, int day)
