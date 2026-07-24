@@ -14,8 +14,9 @@ int day_of_year(int, int, int);
 int julian_day(int, int, int);
 int week_of_month(int, int, int);
 int week_of_year(int, int, int);
+void date_from_julian_day(int, int *, int *, int *);
 void date_now(int *, int *, int *);
-void date_add(int *, int *, int *, int);
+void date_utc(int *, int *, int *);
 int is_date(int, int, int);
 int is_leap(int);
 

@@ -83,6 +83,25 @@ int week_of_year(int year, int month, int day)
     return (day_of_year(year, month, day) - ISO_day_of_week(year, month, day) + 10) / 7;
 }
 
+/**
+ * Inverse of julian_day()
+ * Fliegel & Van Flandern algorithm (proleptic Gregorian calendar)
+ */
+void date_from_julian_day(int jdn, int *year, int *month, int *day)
+{
+    int a = jdn + 32044;
+    int b = ((4 * a) + 3) / 146097;
+    int c = a - ((146097 * b) / 4);
+
+    int d = ((4 * c) + 3) / 1461;
+    int e = c - ((1461 * d) / 4);
+    int m = ((5 * e) + 2) / 153;
+
+    *day = e - (((153 * m) + 2) / 5) + 1;
+    *month = m + 3 - (12 * (m / 10));
+    *year = (100 * b) + d - 4800 + (m / 10);
+}
+
 void date_now(int *year, int *month, int *day)
 {
     time_t t = time(NULL);
@@ -95,20 +114,12 @@ void date_now(int *year, int *month, int *day)
     *day = tm.tm_mday;
 }
 
-void date_add(int *year, int *month, int *day, int days)
+void date_utc(int *year, int *month, int *day)
 {
-    struct tm tm = { 0 };
+    time_t t = time(NULL);
+    int jdn = (int)(t / 86400) + 2440588;
 
-    tm.tm_year = *year - 1900;
-    tm.tm_mon = *month - 1;
-    tm.tm_mday = *day + days;
-    tm.tm_isdst = -1;
-
-    mktime(&tm);
-
-    *year = tm.tm_year + 1900;
-    *month = tm.tm_mon + 1;
-    *day = tm.tm_mday;
+    date_from_julian_day(jdn, year, month, day);
 }
 
 int is_date(int year, int month, int day)
