@@ -199,6 +199,19 @@ void datetime_now(int *year, int *month, int *day,
     *seconds = tm.tm_sec;
 }
 
+long long unixtime_utc(void)
+{
+    return (long long)time(NULL);
+}
+
+long long unixtime_now(void)
+{
+    int year, month, day, hour, minutes, seconds;
+
+    datetime_now(&year, &month, &day, &hour, &minutes, &seconds);
+    return datetime_to_unixtime(year, month, day, hour, minutes, seconds);
+}
+
 /**
  * Encodes a datetime as an absolute number of seconds since
  * julian_day 1970-01-01 (JDN 2440588). Does NOT assume or convert
@@ -206,11 +219,35 @@ void datetime_now(int *year, int *month, int *day,
  * if you pass UTC, you get "UTC seconds". Only meaningful when
  * compared against another value produced with the same encoding.
  */
-long long datetime_seconds(int year, int month, int day,
-                           int hour, int minutes, int seconds)
+long long datetime_to_unixtime(int year, int month, int day,
+                               int hour, int minutes, int seconds)
 {
     long long days = julian_day(year, month, day) - 2440588;
 
     return (days * 86400) + (hour * 3600) + (minutes * 60) + seconds;
+}
+
+/**
+ * Inverse of datetime_to_unixtime()
+ * Encoding-agnostic: if ts was built from local time, this returns
+ * local time; if built from UTC, this returns UTC.
+ * Fixes truncation towards zero for negative ts (pre-1970 dates).
+ */
+void unixtime_to_datetime(long long ts,
+                          int *year, int *month, int *day,
+                          int *hour, int *minutes, int *seconds)
+{
+    long long days = ts / 86400;
+    long long secs = ts % 86400;
+
+    if (secs < 0)
+    {
+        secs += 86400;
+        days--;
+    }
+    date_from_julian_day((int)(days + 2440588), year, month, day);
+    *hour = (int)(secs / 3600);
+    *minutes = (int)((secs / 60) % 60);
+    *seconds = (int)(secs % 60);
 }
 

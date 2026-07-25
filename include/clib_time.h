@@ -25,7 +25,10 @@ void time_utc(int *, int *, int *);
 void time_now(int *, int *, int *);
 void datetime_utc(int *, int *, int *, int *, int *, int *);
 void datetime_now(int *, int *, int *, int *, int *, int *);
-long long datetime_seconds(int, int, int, int, int, int);
+long long unixtime_utc(void);
+long long unixtime_now(void);
+long long datetime_to_unixtime(int, int, int, int, int, int);
+void unixtime_to_datetime(long long, int *, int *, int *, int *, int *, int *);
 
 #endif
 
