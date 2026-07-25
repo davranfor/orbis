@@ -200,19 +200,17 @@ void datetime_now(int *year, int *month, int *day,
 }
 
 /**
- * Seconds since Unix epoch (1970-01-01 00:00:00 UTC)
- * Assumes UTC input, no timezone conversion
+ * Encodes a datetime as an absolute number of seconds since
+ * julian_day 1970-01-01 (JDN 2440588). Does NOT assume or convert
+ * any timezone — if you pass local time, you get "local seconds";
+ * if you pass UTC, you get "UTC seconds". Only meaningful when
+ * compared against another value produced with the same encoding.
  */
-long long timestamp_utc(int year, int month, int day,
-                        int hour, int minutes, int seconds)
+long long datetime_seconds(int year, int month, int day,
+                           int hour, int minutes, int seconds)
 {
     long long days = julian_day(year, month, day) - 2440588;
 
     return (days * 86400) + (hour * 3600) + (minutes * 60) + seconds;
-}
-
-long long timestamp_now(void)
-{
-    return (long long)time(NULL);
 }
 

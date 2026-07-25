@@ -25,8 +25,7 @@ void time_utc(int *, int *, int *);
 void time_now(int *, int *, int *);
 void datetime_utc(int *, int *, int *, int *, int *, int *);
 void datetime_now(int *, int *, int *, int *, int *, int *);
-long long timestamp_utc(int, int, int, int, int, int);
-long long timestamp_now(void);
+long long datetime_seconds(int, int, int, int, int, int);
 
 #endif
 
