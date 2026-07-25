@@ -125,17 +125,6 @@ void date_from_julian_day(int jd, int *year, int *month, int *day)
     *year = (100 * b) + d - 4800 + (m / 10);
 }
 
-void date_utc(int *year, int *month, int *day)
-{
-    time_t t = time(NULL);
-    struct tm tm;
-
-    gmtime_r(&t, &tm);
-    *year = tm.tm_year + 1900;
-    *month = tm.tm_mon + 1;
-    *day = tm.tm_mday;
-}
-
 void date_now(int *year, int *month, int *day)
 {
     time_t t = time(NULL);
@@ -147,38 +136,12 @@ void date_now(int *year, int *month, int *day)
     *day = tm.tm_mday;
 }
 
-void time_utc(int *hour, int *minutes, int *seconds)
-{
-    time_t t = time(NULL);
-    struct tm tm;
-
-    gmtime_r(&t, &tm);
-    *hour = tm.tm_hour;
-    *minutes = tm.tm_min;
-    *seconds = tm.tm_sec;
-}
-
 void time_now(int *hour, int *minutes, int *seconds)
 {
     time_t t = time(NULL);
     struct tm tm;
 
     localtime_r(&t, &tm);
-    *hour = tm.tm_hour;
-    *minutes = tm.tm_min;
-    *seconds = tm.tm_sec;
-}
-
-void datetime_utc(int *year, int *month, int *day,
-                  int *hour, int *minutes, int *seconds)
-{
-    time_t t = time(NULL);
-    struct tm tm;
-
-    gmtime_r(&t, &tm);
-    *year = tm.tm_year + 1900;
-    *month = tm.tm_mon + 1;
-    *day = tm.tm_mday;
     *hour = tm.tm_hour;
     *minutes = tm.tm_min;
     *seconds = tm.tm_sec;
@@ -199,9 +162,19 @@ void datetime_now(int *year, int *month, int *day,
     *seconds = tm.tm_sec;
 }
 
-long long unixtime_utc(void)
+void datetime_utc(int *year, int *month, int *day,
+                  int *hour, int *minutes, int *seconds)
 {
-    return (long long)time(NULL);
+    time_t t = time(NULL);
+    struct tm tm;
+
+    gmtime_r(&t, &tm);
+    *year = tm.tm_year + 1900;
+    *month = tm.tm_mon + 1;
+    *day = tm.tm_mday;
+    *hour = tm.tm_hour;
+    *minutes = tm.tm_min;
+    *seconds = tm.tm_sec;
 }
 
 long long unixtime_now(void)
@@ -210,6 +183,11 @@ long long unixtime_now(void)
 
     datetime_now(&year, &month, &day, &hour, &minutes, &seconds);
     return datetime_to_unixtime(year, month, day, hour, minutes, seconds);
+}
+
+long long unixtime_utc(void)
+{
+    return (long long)time(NULL);
 }
 
 /**
