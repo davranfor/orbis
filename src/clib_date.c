@@ -11,13 +11,11 @@
 
 static int leap_count(int year, int month)
 {
-    int years = year;
-
     if (month <= 2)
     {
-        years--;
+        year--;
     }
-    return (years / 4) - (years / 100) + (years / 400);
+    return (year / 4) - (year / 100) + (year / 400);
 }
 
 int days_in_month(int year, int month)
@@ -87,9 +85,9 @@ int week_of_year(int year, int month, int day)
  * Inverse of julian_day()
  * Fliegel & Van Flandern algorithm (proleptic Gregorian calendar)
  */
-void date_from_julian_day(int jdn, int *year, int *month, int *day)
+void date_from_julian_day(int jd, int *year, int *month, int *day)
 {
-    int a = jdn + 32044;
+    int a = jd + 32044;
     int b = ((4 * a) + 3) / 146097;
     int c = a - ((146097 * b) / 4);
 
@@ -117,9 +115,9 @@ void date_now(int *year, int *month, int *day)
 void date_utc(int *year, int *month, int *day)
 {
     time_t t = time(NULL);
-    int jdn = (int)(t / 86400) + 2440588;
+    int jd = (int)(t / 86400) + 2440588;
 
-    date_from_julian_day(jdn, year, month, day);
+    date_from_julian_day(jd, year, month, day);
 }
 
 int is_date(int year, int month, int day)
