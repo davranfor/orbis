@@ -7,7 +7,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include <time.h>
-#include "clib_date.h"
+#include "clib_time.h"
 
 static int leap_count(int year, int month)
 {
@@ -16,6 +16,32 @@ static int leap_count(int year, int month)
         year--;
     }
     return (year / 4) - (year / 100) + (year / 400);
+}
+
+int is_leap(int year)
+{
+    return ((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0);
+}
+ 
+int is_date(int year, int month, int day)
+{
+    return (year >= 1) && (year <= 9999) &&
+           (month >= 1) && (month <= 12) &&
+           (day >= 1) && (day <= days_in_month(year, month));
+}
+
+int is_time(int hour, int minutes, int seconds)
+{
+    return (hour >= 0) && (hour <= 23) &&
+           (minutes >= 0) && (minutes <= 59) &&
+           (seconds >= 0) && (seconds <= 59);
+}
+
+int is_datetime(int year, int month, int day,
+                int hour, int minutes, int seconds)
+{
+    return is_date(year, month, day)
+        && is_time(hour, minutes, seconds);
 }
 
 int days_in_month(int year, int month)
@@ -90,7 +116,6 @@ void date_from_julian_day(int jd, int *year, int *month, int *day)
     int a = jd + 32044;
     int b = ((4 * a) + 3) / 146097;
     int c = a - ((146097 * b) / 4);
-
     int d = ((4 * c) + 3) / 1461;
     int e = c - ((1461 * d) / 4);
     int m = ((5 * e) + 2) / 153;
@@ -100,35 +125,94 @@ void date_from_julian_day(int jd, int *year, int *month, int *day)
     *year = (100 * b) + d - 4800 + (m / 10);
 }
 
+void date_utc(int *year, int *month, int *day)
+{
+    time_t t = time(NULL);
+    struct tm tm;
+
+    gmtime_r(&t, &tm);
+    *year = tm.tm_year + 1900;
+    *month = tm.tm_mon + 1;
+    *day = tm.tm_mday;
+}
+
 void date_now(int *year, int *month, int *day)
 {
     time_t t = time(NULL);
     struct tm tm;
 
     localtime_r(&t, &tm);
-
     *year = tm.tm_year + 1900;
     *month = tm.tm_mon + 1;
     *day = tm.tm_mday;
 }
 
-void date_utc(int *year, int *month, int *day)
+void time_utc(int *hour, int *minutes, int *seconds)
 {
     time_t t = time(NULL);
-    int jd = (int)(t / 86400) + 2440588;
+    struct tm tm;
 
-    date_from_julian_day(jd, year, month, day);
+    gmtime_r(&t, &tm);
+    *hour = tm.tm_hour;
+    *minutes = tm.tm_min;
+    *seconds = tm.tm_sec;
 }
 
-int is_date(int year, int month, int day)
+void time_now(int *hour, int *minutes, int *seconds)
 {
-    return ((year >= 1) && (year <= 9999)) &&
-           ((month >= 1) && (month <= 12)) &&
-           ((day >= 1) && (day <= days_in_month(year, month)));
+    time_t t = time(NULL);
+    struct tm tm;
+
+    localtime_r(&t, &tm);
+    *hour = tm.tm_hour;
+    *minutes = tm.tm_min;
+    *seconds = tm.tm_sec;
 }
 
-int is_leap(int year)
+void datetime_utc(int *year, int *month, int *day,
+                  int *hour, int *minutes, int *seconds)
 {
-    return ((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0);
+    time_t t = time(NULL);
+    struct tm tm;
+
+    gmtime_r(&t, &tm);
+    *year = tm.tm_year + 1900;
+    *month = tm.tm_mon + 1;
+    *day = tm.tm_mday;
+    *hour = tm.tm_hour;
+    *minutes = tm.tm_min;
+    *seconds = tm.tm_sec;
 }
- 
+
+void datetime_now(int *year, int *month, int *day,
+                  int *hour, int *minutes, int *seconds)
+{
+    time_t t = time(NULL);
+    struct tm tm;
+
+    localtime_r(&t, &tm);
+    *year = tm.tm_year + 1900;
+    *month = tm.tm_mon + 1;
+    *day = tm.tm_mday;
+    *hour = tm.tm_hour;
+    *minutes = tm.tm_min;
+    *seconds = tm.tm_sec;
+}
+
+/**
+ * Seconds since Unix epoch (1970-01-01 00:00:00 UTC)
+ * Assumes UTC input, no timezone conversion
+ */
+long long timestamp_utc(int year, int month, int day,
+                        int hour, int minutes, int seconds)
+{
+    long long days = julian_day(year, month, day) - 2440588;
+
+    return (days * 86400) + (hour * 3600) + (minutes * 60) + seconds;
+}
+
+long long timestamp_now(void)
+{
+    return (long long)time(NULL);
+}
+

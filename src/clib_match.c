@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "clib_date.h"
+#include "clib_time.h"
 #include "clib_unicode.h"
 #include "clib_match.h"
 
