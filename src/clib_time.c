@@ -15,7 +15,7 @@ static int leap_count(int year, int month)
     {
         year--;
     }
-    return (year / 4) - (year / 100) + (year / 400);
+    return year / 4 - year / 100 + year / 400;
 }
 
 int is_leap(int year)
@@ -28,20 +28,6 @@ int is_date(int year, int month, int day)
     return (year >= 1) && (year <= 9999) &&
            (month >= 1) && (month <= 12) &&
            (day >= 1) && (day <= days_in_month(year, month));
-}
-
-int is_time(int hour, int minutes, int seconds)
-{
-    return (hour >= 0) && (hour <= 23) &&
-           (minutes >= 0) && (minutes <= 59) &&
-           (seconds >= 0) && (seconds <= 59);
-}
-
-int is_datetime(int year, int month, int day,
-                int hour, int minutes, int seconds)
-{
-    return is_date(year, month, day)
-        && is_time(hour, minutes, seconds);
 }
 
 int days_in_month(int year, int month)
@@ -94,7 +80,7 @@ int julian_day(int year, int month, int day)
 {
     static const int days[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
 
-    return (year * 365) + day + days[month - 1] + leap_count(year, month) + 1721060;
+    return year * 365 + day + days[month - 1] + leap_count(year, month) + 1721060;
 }
 
 int week_of_month(int year, int month, int day)
@@ -136,53 +122,45 @@ void date_now(int *year, int *month, int *day)
     *day = tm.tm_mday;
 }
 
-void time_now(int *hour, int *minutes, int *seconds)
+datetime_t datetime_now(void)
 {
     time_t t = time(NULL);
     struct tm tm;
 
     localtime_r(&t, &tm);
-    *hour = tm.tm_hour;
-    *minutes = tm.tm_min;
-    *seconds = tm.tm_sec;
+
+    datetime_t dt;
+
+    dt.year = tm.tm_year + 1900;
+    dt.month = tm.tm_mon + 1;
+    dt.day = tm.tm_mday;
+    dt.hour = tm.tm_hour;
+    dt.minutes = tm.tm_min;
+    dt.seconds = tm.tm_sec;
+    return dt;
 }
 
-void datetime_now(int *year, int *month, int *day,
-                  int *hour, int *minutes, int *seconds)
-{
-    time_t t = time(NULL);
-    struct tm tm;
-
-    localtime_r(&t, &tm);
-    *year = tm.tm_year + 1900;
-    *month = tm.tm_mon + 1;
-    *day = tm.tm_mday;
-    *hour = tm.tm_hour;
-    *minutes = tm.tm_min;
-    *seconds = tm.tm_sec;
-}
-
-void datetime_utc(int *year, int *month, int *day,
-                  int *hour, int *minutes, int *seconds)
+datetime_t datetime_utc(void)
 {
     time_t t = time(NULL);
     struct tm tm;
 
     gmtime_r(&t, &tm);
-    *year = tm.tm_year + 1900;
-    *month = tm.tm_mon + 1;
-    *day = tm.tm_mday;
-    *hour = tm.tm_hour;
-    *minutes = tm.tm_min;
-    *seconds = tm.tm_sec;
+
+    datetime_t dt;
+
+    dt.year = tm.tm_year + 1900;
+    dt.month = tm.tm_mon + 1;
+    dt.day = tm.tm_mday;
+    dt.hour = tm.tm_hour;
+    dt.minutes = tm.tm_min;
+    dt.seconds = tm.tm_sec;
+    return dt;
 }
 
 long long unixtime_now(void)
 {
-    int year, month, day, hour, minutes, seconds;
-
-    datetime_now(&year, &month, &day, &hour, &minutes, &seconds);
-    return datetime_to_unixtime(year, month, day, hour, minutes, seconds);
+    return datetime_to_unixtime(datetime_now());
 }
 
 long long unixtime_utc(void)
@@ -197,12 +175,11 @@ long long unixtime_utc(void)
  * if you pass UTC, you get "UTC seconds". Only meaningful when
  * compared against another value produced with the same encoding.
  */
-long long datetime_to_unixtime(int year, int month, int day,
-                               int hour, int minutes, int seconds)
+long long datetime_to_unixtime(datetime_t dt)
 {
-    long long days = julian_day(year, month, day) - 2440588;
+    long long days = julian_day(dt.year, dt.month, dt.day) - 2440588;
 
-    return (days * 86400) + (hour * 3600) + (minutes * 60) + seconds;
+    return days * 86400 + dt.hour * 3600 + dt.minutes * 60 + dt.seconds;
 }
 
 /**
@@ -211,9 +188,7 @@ long long datetime_to_unixtime(int year, int month, int day,
  * local time; if built from UTC, this returns UTC.
  * Fixes truncation towards zero for negative ts (pre-1970 dates).
  */
-void unixtime_to_datetime(long long ts,
-                          int *year, int *month, int *day,
-                          int *hour, int *minutes, int *seconds)
+datetime_t unixtime_to_datetime(long long ts)
 {
     long long days = ts / 86400;
     long long secs = ts % 86400;
@@ -223,9 +198,13 @@ void unixtime_to_datetime(long long ts,
         secs += 86400;
         days--;
     }
-    date_from_julian_day((int)(days + 2440588), year, month, day);
-    *hour = (int)(secs / 3600);
-    *minutes = (int)((secs / 60) % 60);
-    *seconds = (int)(secs % 60);
+
+    datetime_t dt;
+
+    date_from_julian_day((int)(days + 2440588), &dt.year, &dt.month, &dt.day);
+    dt.hour = (int)(secs / 3600);
+    dt.minutes = (int)((secs / 60) % 60);
+    dt.seconds = (int)(secs % 60);
+    return dt;
 }
 
