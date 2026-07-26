@@ -5,7 +5,7 @@ SRCDIR  = ../src
 
 COMMON  = $(SRCDIR)/clib_math.c $(SRCDIR)/clib_unicode.c $(SRCDIR)/json_parser.c
 WRITER  = $(COMMON) $(SRCDIR)/json_writer.c
-READER  = $(WRITER) $(SRCDIR)/json_reader.c $(SRCDIR)/clib_match.c $(SRCDIR)/clib_regex.c $(SRCDIR)/clib_date.c
+READER  = $(WRITER) $(SRCDIR)/json_reader.c $(SRCDIR)/clib_match.c $(SRCDIR)/clib_regex.c $(SRCDIR)/clib_time.c
 POINTER = $(READER) $(SRCDIR)/json_pointer.c
 BUFFER  = $(WRITER) $(SRCDIR)/clib_buffer.c $(SRCDIR)/json_buffer.c
 SORTER  = $(WRITER) $(SRCDIR)/json_sorter.c
