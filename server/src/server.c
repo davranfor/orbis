@@ -20,6 +20,26 @@
 #include "parser.h"
 #include "server.h"
 
+/*
+---------------------------------------------------------------------
+Single-thread, non-blocking event loop
+---------------------------------------------------------------------
+One poll() array drives everything: conn[0] is the listening socket,
+conn[1..MAX_CLIENTS] are clients (conn_t is just struct pollfd). There
+is one shared, static BUFFER_SIZE scratch buffer for recv() — safe
+only because there's a single thread and it's fully consumed (parsed
+or copied into a connection's own pool_t) before the next recv().
+Each connection additionally owns a pool_t (a growable buffer_t) that
+is only actually allocated when a request or response doesn't fit in
+one recv()/send() call and has to be accumulated across several.
+
+conn_recv()/conn_send() share a 3-way return convention with
+parser_status(): 0 means the connection is done (close it), -1 means
+"would block, try again once poll() says so" (arms POLLOUT for sends),
+and any other value means the operation completed.
+---------------------------------------------------------------------
+*/
+
 static struct { char text[BUFFER_SIZE]; size_t length; } buffer;
 static volatile sig_atomic_t stop;
 
@@ -128,6 +148,13 @@ static void conn_reset(conn_t *conn)
     conn->events = 0;
 }
 
+/**
+ * Fast path: if 'pool' is still empty and this single recv() already
+ * holds a complete request, conn_handle() can parse straight out of
+ * the shared scratch buffer — 'pool' is only actually appended to
+ * (and from then on, re-checked instead of the scratch buffer) once
+ * a request spans more than one recv().
+ */
 static int conn_recv(conn_t *conn, pool_t *pool)
 {
     ssize_t bytes = recv(conn->fd, buffer.text, BUFFER_SIZE - 1, 0);
@@ -170,6 +197,16 @@ static int conn_recv(conn_t *conn, pool_t *pool)
     return status;
 }
 
+/**
+ * 'message' is usually NOT this connection's own memory: parser_handle()
+ * returns a pointer into a static, module-level buffer (solver.c's
+ * response buffer, or one of static.c's canned error bodies) that gets
+ * reused, and overwritten, by whichever connection is served next. So
+ * on a partial send, the unsent tail is copied into 'pool' right away
+ * (buffer_append) rather than resumed from 'message' later — except
+ * when 'message' already IS 'pool' (a resumed send, see conn_handle()),
+ * where it's simply trimmed from the front (buffer_delete) instead.
+ */
 static int conn_send(conn_t *conn, pool_t *pool, const pool_t *message)
 {
     ssize_t bytes = send(conn->fd, message->text, message->length, 0);
@@ -209,6 +246,13 @@ static int conn_send(conn_t *conn, pool_t *pool, const pool_t *message)
     return -1;
 }
 
+/**
+ * 'message' defaults to 'pool': on a POLLOUT-only wakeup (a previous
+ * send() came up short) there's nothing new to parse, just leftover
+ * response bytes already sitting in 'pool' from conn_send()'s partial-
+ * send handling. A POLLIN event replaces it with whatever
+ * parser_handle() returns once a full request has been read.
+ */
 static void conn_handle(conn_t *conn, pool_t *pool)
 {
     if (!(conn->revents & ~(POLLIN | POLLOUT)))

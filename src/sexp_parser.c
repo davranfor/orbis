@@ -12,6 +12,20 @@
 #include "clib_unicode.h"
 #include "sexp_parser.h"
 
+/*
+---------------------------------------------------------------------
+S-expression parser
+---------------------------------------------------------------------
+Same event-driven design as json_parser.c (see its header comment),
+adapted to the S-expression syntax used to write schemas: symbols and
+a JSON-like set of scalars, grouped with parentheses instead of
+{}/[]. There's a single container event, SEXP_REDUCE, fired when a
+')' closes an expression — the callback (see json_compile() in
+json_validator.c) uses it as the shift-reduce point where it turns
+the just-parsed symbol and its arguments into one compiled opcode.
+---------------------------------------------------------------------
+*/
+
 static int parse(sexp_event_t *);
 
 static inline int is_boundary(int c)
@@ -70,6 +84,10 @@ static char *decode_string(sexp_event_t *event)
     return result;
 }
 
+/**
+ * Compacts the symbol into the '(' and any spaces just consumed, the
+ * same in-place trick decode_string() uses for escape sequences
+ */
 static int parse_symbol(sexp_event_t *event)
 {
     if (!is_alpha(*event->iter))

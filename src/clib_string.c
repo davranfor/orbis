@@ -23,7 +23,7 @@ char *string_clone(const char *str)
     return ptr;
 }
 
-/* Returns an allocated string using printf style*/
+/* Returns an allocated string using printf style */
 char *string_format(const char *fmt, ...)
 {
     va_list args;

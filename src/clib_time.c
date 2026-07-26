@@ -9,6 +9,36 @@
 #include <time.h>
 #include "clib_time.h"
 
+/*
+---------------------------------------------------------------------
+Calendar and time arithmetic
+---------------------------------------------------------------------
+Two independent, purely arithmetic numbering systems back this file:
+
+- Julian Day Number (int): a monotonic day count produced by
+  julian_day() and reversed by date_from_julian_day(), valid for the
+  proleptic Gregorian calendar accepted by is_date() (year 1 to
+  9999). Dates can be added, subtracted or compared just by doing
+  that on their Julian Day Number.
+
+- unixtime (int64_t): seconds elapsed since 1970-01-01 00:00:00,
+  produced by datetime_to_unixtime() and reversed by
+  unixtime_to_datetime(), built on top of the Julian Day Number.
+  Same idea as above, at second resolution.
+
+Both conversions are encoding-agnostic: they never look at, assume
+or convert time zones. Feed them a local datetime and you get
+"local seconds"; feed them a UTC datetime and you get "UTC seconds".
+The two are only comparable when built with the same encoding -
+mixing them silently produces a wrong but plausible-looking result.
+
+Converting an arbitrary datetime from one time zone to another (as
+opposed to just reading "now" in two zones, which datetime_now() and
+datetime_utc() already do) requires the platform's time zone
+database and is out of scope here; see mktime()/timegm() for that.
+---------------------------------------------------------------------
+*/
+
 static int leap_count(int year, int month)
 {
     if (month <= 2)
@@ -76,6 +106,10 @@ int day_of_year(int year, int month, int day)
     return days[is_leap(year)][month - 1] + day;
 }
 
+/**
+ * Encodes (year, month, day) as a Julian Day Number
+ * Inverse: date_from_julian_day()
+ */
 int julian_day(int year, int month, int day)
 {
     static const int days[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
@@ -83,11 +117,13 @@ int julian_day(int year, int month, int day)
     return year * 365 + day + days[month - 1] + leap_count(year, month) + 1721060;
 }
 
+/* ISO 8601 week number within the month (weeks start on Monday) */
 int week_of_month(int year, int month, int day)
 {
     return (day - ISO_day_of_week(year, month, day) + 10) / 7;
 }
 
+/* ISO 8601 week number within the year (weeks start on Monday) */
 int week_of_year(int year, int month, int day)
 {
     return (day_of_year(year, month, day) - ISO_day_of_week(year, month, day) + 10) / 7;
@@ -169,11 +205,8 @@ int64_t unixtime_utc(void)
 }
 
 /**
- * Encodes a datetime as an absolute number of seconds since
- * julian_day 1970-01-01 (JDN 2440588). Does NOT assume or convert
- * any timezone — if you pass local time, you get "local seconds";
- * if you pass UTC, you get "UTC seconds". Only meaningful when
- * compared against another value produced with the same encoding.
+ * Encodes a datetime as unixtime, counting from 1970-01-01 (JDN 2440588)
+ * Inverse: unixtime_to_datetime()
  */
 int64_t datetime_to_unixtime(datetime_t dt)
 {
@@ -184,9 +217,7 @@ int64_t datetime_to_unixtime(datetime_t dt)
 
 /**
  * Inverse of datetime_to_unixtime()
- * Encoding-agnostic: if ts was built from local time, this returns
- * local time; if built from UTC, this returns UTC.
- * Fixes truncation towards zero for negative ts (pre-1970 dates).
+ * Fixes truncation towards zero for negative ts (pre-1970 dates)
  */
 datetime_t unixtime_to_datetime(int64_t ts)
 {

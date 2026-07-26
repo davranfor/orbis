@@ -32,10 +32,10 @@ void json_set_encoding(enum json_encoding mode)
 }
 
 /**
- * According to IEEE 754-1985, double can represent numbers with maximum
- * accuracy of 17 digits after point. Add to it both minuses for mantissa
- * and period, point, e-char and 3 digits of period (8 bit), and you will
- * get exact 24 chars.
+ * An IEEE 754 double needs at most 17 significant digits to round-trip
+ * exactly. NUMBER_CHARS covers the worst case %g can print around them:
+ * a '-' for the mantissa, the decimal point, 'e', a '-' for the exponent
+ * and 3 exponent digits (doubles range up to 1e+308) — 17+1+1+1+1+3 = 24.
  */
 #define MAX_DECIMALS 17
 #define NUMBER_CHARS 24
@@ -121,6 +121,12 @@ static char *write_string(buffer_t *buffer, const char *str)
     return buffer_put(buffer, '"');
 }
 
+/**
+ * encode_node()/encode_edge()/encode_tree() are mutually recursive and
+ * walk the tree in DFS pre-order. 'trailing_comma' is decided by the
+ * caller (node->size > i + 1, i.e. "is there a next sibling?") because
+ * JSON forbids a comma after the last element of an object or array.
+ */
 static int encode_node(buffer_t *buffer, const json_t *node,
     unsigned short depth, unsigned char indent,
     unsigned char trailing_comma)

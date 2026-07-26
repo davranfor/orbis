@@ -12,6 +12,21 @@
 #include "clib_unicode.h"
 #include "clib_buffer.h"
 
+/*
+---------------------------------------------------------------------
+Growable text buffer
+---------------------------------------------------------------------
+buffer->size is always a power of 2 (see next_pow2() in clib_math.c),
+so appends amortize to O(1) instead of reallocating on every write.
+
+buffer->error is sticky: once an allocation or vsnprintf() call fails,
+every write function becomes a no-op (buffer_resize() bails out early)
+until buffer_reset() or buffer_clear() is called. This lets callers
+chain several writes and check for failure once at the end instead of
+after every call.
+---------------------------------------------------------------------
+*/
+
 buffer_t *buffer_create(void)
 {
     return calloc(1, sizeof(buffer_t));
@@ -153,6 +168,7 @@ char *buffer_put(buffer_t *buffer, char chr)
     return buffer->text;
 }
 
+/* Steps back over a split multi-byte UTF-8 sequence before cutting */
 char *buffer_truncate(buffer_t *buffer, size_t length)
 {
     if ((length <= buffer->length) && (buffer->text != NULL))

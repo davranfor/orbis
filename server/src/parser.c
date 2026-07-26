@@ -21,6 +21,14 @@
 #include "solver.h"
 #include "parser.h"
 
+/**
+ * Tells the caller (server.c) whether 'message' is a complete HTTP
+ * request yet: 0 means malformed/oversized (drop the connection),
+ * -1 means keep reading, 1 means it's ready for parser_handle().
+ * Needs no state of its own: headers end at the first "\r\n\r\n", and
+ * from there Content-Length (if present) says exactly how many body
+ * bytes to wait for.
+ */
 int parser_status(const char *message, size_t length)
 {
     if (length > REQUEST_MAX_LENGTH)
@@ -64,6 +72,9 @@ static const buffer_t *parse_headers(request_t *request, char *str)
     puts(str);
 #endif
 
+    /* Cuts 'str' right after the blank line, so it ends there as its
+       own C string and router_method()/strstr() below never scan
+       past the headers into the body */
     char *content = strstr(str, "\r\n\r\n") + 4;
 
     content[-2] = '\0';
@@ -99,6 +110,15 @@ static const buffer_t *parse_headers(request_t *request, char *str)
     return static_bad_request();
 }
 
+/**
+ * Decodes a "k1=v1&k2=v2" query string into 'params' in one pass,
+ * in place: percent-escapes and '+' shrink as they're decoded, so
+ * the write cursor 'ptr' never runs ahead of the read cursor 'str'.
+ * '=' and '&'/'\0' are where a key or value ends — each occurrence
+ * NUL-terminates it in place and starts the next one right after.
+ * A key with no '=' (params[size].key still NULL when '&' or '\0'
+ * is hit) is treated as malformed, not as a valueless param.
+ */
 static unsigned decode_params(json_t *params, char *str)
 {
     char *key = str, *ptr = str;
@@ -233,6 +253,14 @@ static int parse_fields(request_t *request, json_t *fields)
     return json_parse(request->content, decode_fields, fields);
 }
 
+/**
+ * Query string params, JSON/form body and session are three different
+ * sources with three different formats; here they're assembled into
+ * one synthetic json_t tree (all on the stack, no parsing of a real
+ * document) so the rest of the pipeline — the "@eval" schema and SQL
+ * placeholders in endpoints.sql — only ever has to deal with one
+ * shape: node.params, node.content, node.session.
+ */
 const buffer_t *parser_handle(char *message)
 {
     request_t request = { 0 };

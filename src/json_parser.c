@@ -12,6 +12,24 @@
 #include "clib_unicode.h"
 #include "json_parser.h"
 
+/*
+---------------------------------------------------------------------
+Recursive-descent JSON parser
+---------------------------------------------------------------------
+Each parse_*() function consumes one JSON value and fires 'callback'
+with the fully-populated event once per value (twice for objects and
+arrays: JSON_OBJECT/JSON_ARRAY on open, JSON_OBJECT_END/JSON_ARRAY_END
+on close). The parser holds no tree of its own — building one, or
+anything else, is entirely up to the callback (see decode() in
+json_writer.c for the tree builder actually used by json_decode()).
+
+Strings are decoded in place: escape sequences are always shorter
+than or equal to their source, so decode_string() overwrites the
+input between the opening and closing quotes as it goes. This is why
+json_parse() requires a writable buffer, not a string literal.
+---------------------------------------------------------------------
+*/
+
 static int parse(json_event_t *);
 
 static char *skip_spaces(char *str)

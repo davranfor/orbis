@@ -69,8 +69,8 @@ int is_hex(const char *str)
 }
 
 /**
- * Converts unicode escape sequence to multibyte sequence
- * Returns the length of the multibyte in bytes
+ * Converts a JSON \uXXXX escape sequence to a UTF-8 multibyte sequence
+ * Returns the length of the multibyte in bytes. Inverse: encode_hex()
  */
 size_t decode_hex(const char *str, char *buf)
 {

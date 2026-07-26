@@ -11,9 +11,9 @@ Map of key/value pairs
 Keys (strings) are copied as a flexible array member
 Values are references to data (generic type void *)
 
-- Uses Dan Berstein's djb2 algorithm as hash function
+- Uses Dan Bernstein's djb2 algorithm as hash function
   http://www.cse.yorku.ca/~oz/hash.html
-- Nodes that colides are handled in a singly linked list
+- Nodes that collide are handled in a singly linked list
 - The size of the map is duplicated when 75% is occupied
 - Nodes in old maps are moved (rehashed) to new maps
   on insertion/deletion (search doesn't alter the map)
@@ -128,6 +128,15 @@ static void move(map_t *map, struct node *node)
     map->size++;
 }
 
+/**
+ * Migrates just the one bucket 'hash' lands on, then follows map->next.
+ * That's normally a single old->new hop, but map->next is really a
+ * chain: if inserts keep hitting the 75% mark faster than older
+ * generations finish draining, a map can have its own ->next before
+ * the previous rehash of it is done. Whichever generation ends up
+ * with live nodes for this hash (or the last one, if all are empty)
+ * is what every other map_*() function actually operates on.
+ */
 static map_t *rehash(map_t *map, unsigned long hash)
 {
     while (map->next != NULL)

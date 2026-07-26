@@ -9,7 +9,29 @@
 #include <string.h>
 #include <orbis/clib_stream.h>
 #include <orbis/json_validator.h>
-#include "router.h" 
+#include "router.h"
+
+/*
+---------------------------------------------------------------------
+endpoints.sql loader
+---------------------------------------------------------------------
+Each endpoint is three sections: "-- @path" (an HTTP method + route,
+e.g. "GET /api/users"), "-- @eval" (a schema, compiled by
+json_compile() from json_validator.c), "-- @stmt" (the SQL to run).
+scan() is a small hand-written state machine that walks the file once,
+splitting on "-- @xxx" markers and handing each section's raw text to
+set_section(); router_load() then sorts all endpoints by path so
+router_search() can bsearch() them.
+
+The same @path can appear more than once (see "GET /api/users" in
+endpoints.sql: one variant with no params lists all users, another
+with ?id=... looks up one). enumerate() numbers those duplicates
+0, 1, 2... in file order; solver.c tries them in that order, moving
+to the next one whenever a request's params don't match the current
+variant's @eval schema. This is how the same path supports more than
+one shape of request without any branching in C.
+---------------------------------------------------------------------
+*/
 
 struct
 {
@@ -72,6 +94,8 @@ static unsigned get_section(const char *str)
     {
         size_t length = strlen(sections[i]);
 
+        /* Only a match if the rest of the line is blank — rejects a
+           false hit like "-- @path-ish comment" */
         if ((strncmp(str, sections[i], length) == 0) &&
             (strcspn(str + length, "\n") == strspn(str + length, " \r\t")))
         {
@@ -132,6 +156,17 @@ static int set_section(unsigned sections, unsigned section, char *str)
     return 1;
 }
 
+/**
+ * Scans exactly one endpoint (one @path + @eval + @stmt group) out of
+ * 'str', in place, and returns where the next one starts (or NULL at
+ * end of file). 'start'/'end' track the first/last non-blank byte of
+ * whatever section is currently being read, so its content is used
+ * trimmed without a copy. 'blank' says whether the last byte seen was
+ * blank/newline, since a "-- @..." marker only counts as one at the
+ * start of a line. The 'scanner:' label is reached two ways — hitting
+ * a real marker, or hitting '\0' — so end-of-file closes out whatever
+ * section was still open exactly like a new marker would.
+ */
 static char *scan(char *str)
 {
     char *start = NULL, *end = NULL;

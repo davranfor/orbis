@@ -9,6 +9,7 @@
 
 #define SEXP_MAX_DEPTH 32
 
+/* Bitmask enum, same rationale as json_header.h */
 enum
 {
     SEXP_UNDEFINED = 0,

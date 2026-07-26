@@ -9,6 +9,12 @@
 
 #define JSON_MAX_DEPTH 32
 
+/**
+ * One bit per type: a node's type is tested against a whole category
+ * (JSON_NUMBER, JSON_SCALAR...) with a single AND instead of a chain
+ * of == comparisons. _END variants are parser events only (emitted
+ * when '}'/']' closes an object/array), never a node->type value.
+ */
 enum
 {
     JSON_UNDEFINED = 0,

@@ -18,6 +18,33 @@
 #include "json_reader.h"
 #include "json_validator.h"
 
+/*
+---------------------------------------------------------------------
+Schema DSL: S-expressions compiled to bytecode
+---------------------------------------------------------------------
+A schema is written as S-expressions (see sexp_parser.c) and turned
+by json_compile() into a flat, contiguous array of code_t — no tree,
+no heap-allocated nodes, one malloc'd/realloc'd array for the whole
+schema. json_validate() then runs that array against a json_t tree
+with eval_code(), a tiny bytecode interpreter (see its comment below
+for the part that makes it one).
+
+This file has two halves:
+
+- EVAL CODE: the runtime. One eval_*() function per opcode, each one
+  a code_t->action.
+
+- COMPILE CODE: the compiler. push_symbol()/push_reduce()/push_scalar()
+  are the sexp_parse() callback (SEXP_SYMBOL/SEXP_REDUCE/scalar events),
+  driving a small compile-time stack (frame_t.path[], indexed by sexp
+  nesting depth) that (1) rejects keywords that can't appear where
+  they were written (keyword_is_expected(), expression_is_valid()) and
+  (2) backpatches jump offsets — e.g. "optional"/"nullable" are only
+  known once the whole property expression has been reduced, so they
+  patch the code_t emitted earlier for KEYWORD_PROPERTY.
+---------------------------------------------------------------------
+*/
+
 #define KEYWORD(_)                                  \
     _(KEYWORD_OBJECT,           "object")           \
     _(KEYWORD_TUPLE,            "tuple")            \
@@ -120,6 +147,14 @@ typedef struct code
 static int raise_error(const schema_t *, const char *, ...)
     __attribute__((format(printf, 2, 3)));
 
+/**
+ * encode_key()/write_key()/write_index()/write_node()/write_path()
+ * rebuild the failing node's JSON Pointer (RFC 6901, see json_pointer.c)
+ * on the fly from schema->path[], escaping '~' and '/' as they go, into
+ * a fixed 256-byte stack buffer (raise_error()'s 'path'). Truncated
+ * with "..." if it would overflow rather than growing — the schema
+ * stack doesn't touch the heap even to report an error.
+ */
 static size_t encode_key(char *key, size_t size)
 {
     size_t length = strlen(key);
@@ -254,6 +289,16 @@ static int raise_error(const schema_t *schema, const char *fmt, ...)
     return 0;
 }
 
+/**
+ * The bytecode interpreter: each action's return value IS the number
+ * of code_t slots to advance by, not a plain boolean. 0 means
+ * validation failed (already reported through raise_error()) and
+ * stops the run; 1 means "move to the next instruction"; anything
+ * else is a forward or backward jump — e.g. eval_array_end() returns
+ * a negative offset to loop back over remaining array items, and
+ * eval_property()/eval_enum() jump forward to skip code that doesn't
+ * apply (a missing optional property, an already-matched enum value).
+ */
 static int eval_code(const code_t *code, schema_t *schema)
 {
     for (int iter = 0; code->action != NULL; code += iter)
@@ -686,6 +731,14 @@ static int eval_meta(const code_t *code, schema_t *schema)
 #define log(...) ((void)0)
 #endif
 
+/**
+ * One path_t per sexp nesting level (frame_t.path[event->depth]):
+ * 'keyword' is the enclosing keyword, 'index' the code_t slot it
+ * emitted (for later backpatching), 'type'/'size' track what's been
+ * seen so far inside it (single scalar type allowed, item count...).
+ * Discarded once its expression is reduced (SEXP_REDUCE) — this is
+ * compile-time-only state, none of it survives into code_t.
+ */
 typedef struct { unsigned keyword, index, type, size; } path_t;
 typedef struct
 {
@@ -958,6 +1011,17 @@ static int push_symbol(const sexp_event_t *event)
     code_t *code;
 
     CHECK(code = code_resize(frame));
+    /**
+     * ARRAY and PROPERTY are the two keywords whose eval_*() needs more
+     * state than a single code_t carries, so they get an extra "header"
+     * slot right before their real action slot: a no-op (eval_meta) that
+     * only exists to hold data. path->index is bumped to point past it,
+     * at the action slot, so every other reference to path->index (here
+     * and in push_reduce()) lands on the action; the action then reaches
+     * code[-1] to read/patch its own header — eval_array() for pair
+     * (min/maxItems), eval_property() for flags (optional/nullable) and
+     * jump (how far to skip when the property doesn't apply).
+     */
     switch (keyword)
     {
         case KEYWORD_ARRAY:

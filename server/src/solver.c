@@ -273,6 +273,16 @@ static void write_issue(const json_t *node)
     json_buffer_encode(&buffer, &message, 2);
 }
 
+/**
+ * Three independent binding conventions feed one sqlite3_stmt:
+ * @name  <- request.params (query string, always text)
+ * :name  <- request.content, when it's a JSON object (by field name)
+ * $N     <- request.content, when it's a JSON array (by 1-based index)
+ * $USER / $ROLE <- the session (see bind_session()), not the request
+ * A placeholder that isn't present in the statement is simply skipped
+ * (sqlite3_bind_parameter_index() returns 0), so @stmt only needs to
+ * name what it actually uses.
+ */
 static int bind_params(sqlite3_stmt *stmt, const json_t *params)
 {
     for (unsigned i = 0; i < params->size; i++)
@@ -400,6 +410,18 @@ static int bind_session(sqlite3_stmt *stmt)
     return 1;
 }
 
+/**
+ * A single @stmt can hold several ';'-separated SQL statements:
+ * sqlite3_prepare_v2()'s last argument advances 'sql' past whatever it
+ * just compiled, so the while loop keeps preparing/running/finalizing
+ * until nothing is left. Only the first column of any SELECT rows is
+ * collected, as raw text, straight into 'buffer' — endpoints.sql uses
+ * SQLite's json_array()/json_group_array() so that text already is
+ * the JSON response body, no separate encoding step needed here.
+ * If nothing was ever written to 'buffer', sqlite3_total_changes()
+ * tells GET-less requests (INSERT/UPDATE/DELETE with no SELECT) apart
+ * from a real "nothing found" (see the caller).
+ */
 static int handle_stmt(const json_t *request, const char *path, const char *sql)
 {
     int total_changes = sqlite3_total_changes(db);
@@ -517,6 +539,15 @@ typedef struct
     int index;
 } context_t;
 
+/**
+ * json_validate()'s error callback, and the piece that implements the
+ * "same path, several @eval variants" overload described in router.c.
+ * A validation failure under /params means this variant's schema
+ * just doesn't match the request; try the next endpoint sharing the
+ * same path (router_search(path, ++index)) instead of giving up.
+ * A failure anywhere else (a bad /session, or the request body itself)
+ * is a real error and is reported as such.
+ */
 static void on_validate_request(const json_t *node, void *data)
 {
     const char *path = json_text(json_find(node, "path"));

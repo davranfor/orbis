@@ -18,6 +18,7 @@ int file_exists(const char *path)
     return access(path, F_OK) == 0;
 }
 
+/* read() may return fewer bytes than asked; retry on EINTR, bail out on EOF/error */
 static char *read_fd(int fd, char *str, size_t length)
 {
     if (str == NULL)
@@ -101,6 +102,7 @@ char *file_read_callback(const char *path, char *(*callback)(void *, size_t),
     return str;
 }
 
+/* Same short-write caveat as read_fd(): retry on EINTR, bail out on EOF/error */
 static int write_bytes(const char *path, const char *str, size_t length, int mode)
 {
     int fd = open(path, O_WRONLY | O_CREAT | mode, 0644);

@@ -81,7 +81,7 @@ const char *session_build(session_t *session, int user, int role, const char *to
 #ifdef ALLOW_INSECURE_TOKEN
     /**
      * For testing purposes where you can not provide an SSL connection:
-     * Some browsers (i.e. Safari) doesn't send a Secure token on non-https
+     * Some browsers (i.e. Safari) don't send a Secure token on non-https
      * connections even for testing with localhost (https requires 'Secure;')
      * You can set an environment variable on .zshrc or .bashrc:
      * export ALLOW_INSECURE_TOKEN=1

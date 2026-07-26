@@ -11,6 +11,17 @@
 #include "clib_unicode.h"
 #include "clib_match.h"
 
+/*
+---------------------------------------------------------------------
+Format validators
+---------------------------------------------------------------------
+Each test_is_*() function validates one format without allocating or
+copying: they walk the input once and return a boolean. test_match()
+dispatches to one of them by name and backs the "format" keyword of
+the schema validator (see json_validator.c).
+---------------------------------------------------------------------
+*/
+
 const char *test_mask(const char *text, const char *mask)
 {
     /**
