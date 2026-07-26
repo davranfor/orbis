@@ -158,14 +158,14 @@ datetime_t datetime_utc(void)
     return dt;
 }
 
-long long unixtime_now(void)
+int64_t unixtime_now(void)
 {
     return datetime_to_unixtime(datetime_now());
 }
 
-long long unixtime_utc(void)
+int64_t unixtime_utc(void)
 {
-    return (long long)time(NULL);
+    return (int64_t)time(NULL);
 }
 
 /**
@@ -175,9 +175,9 @@ long long unixtime_utc(void)
  * if you pass UTC, you get "UTC seconds". Only meaningful when
  * compared against another value produced with the same encoding.
  */
-long long datetime_to_unixtime(datetime_t dt)
+int64_t datetime_to_unixtime(datetime_t dt)
 {
-    long long days = julian_day(dt.year, dt.month, dt.day) - 2440588;
+    int64_t days = julian_day(dt.year, dt.month, dt.day) - 2440588;
 
     return days * 86400 + dt.hour * 3600 + dt.minutes * 60 + dt.seconds;
 }
@@ -188,10 +188,10 @@ long long datetime_to_unixtime(datetime_t dt)
  * local time; if built from UTC, this returns UTC.
  * Fixes truncation towards zero for negative ts (pre-1970 dates).
  */
-datetime_t unixtime_to_datetime(long long ts)
+datetime_t unixtime_to_datetime(int64_t ts)
 {
-    long long days = ts / 86400;
-    long long secs = ts % 86400;
+    int64_t days = ts / 86400;
+    int64_t secs = ts % 86400;
 
     if (secs < 0)
     {

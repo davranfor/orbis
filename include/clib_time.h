@@ -7,6 +7,8 @@
 #ifndef CLIB_TIME_H
 #define CLIB_TIME_H
 
+#include <stdint.h>
+
 typedef struct { int year, month, day, hour, minutes, seconds; } datetime_t;
 
 int is_leap(int);
@@ -22,10 +24,10 @@ void date_from_julian_day(int, int *, int *, int *);
 void date_now(int *, int *, int *);
 datetime_t datetime_now(void);
 datetime_t datetime_utc(void);
-long long unixtime_now(void);
-long long unixtime_utc(void);
-long long datetime_to_unixtime(datetime_t);
-datetime_t unixtime_to_datetime(long long);
+int64_t unixtime_now(void);
+int64_t unixtime_utc(void);
+int64_t datetime_to_unixtime(datetime_t);
+datetime_t unixtime_to_datetime(int64_t);
 
 #endif
 
