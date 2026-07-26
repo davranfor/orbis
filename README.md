@@ -39,7 +39,6 @@ Given this JSON document:
     (property "age" (integer (min 0) (max 120)))
     (property "email" (string (format "email")))
     (property "items" (array (integer) (minItems 1) (uniqueItems)))
-    (etc)
 )
 ```
 
