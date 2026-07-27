@@ -10,5 +10,5 @@ cppcheck --language=c --std=c11 --enable=all --check-level=exhaustive --inline-s
 echo
 
 echo "Checking with clang ..."
-clang --analyze -Xanalyzer -analyzer-output=text -Iinclude src/*.c
+clang --analyze -Xanalyzer -analyzer-output=text -Iinclude -Iserver/include src/*.c server/src/*.c
 

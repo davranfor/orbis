@@ -34,7 +34,10 @@ int main(int argc, char *argv[])
         date_now(&y, &m, &d);
     }
 
-    char *dow[] = { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" };
+    const char *dow[] =
+    {
+        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+    };
 
     printf(" Input date: %04d-%02d-%02d\n", y, m, d);
     printf(" Julian day: %d\n", julian_day(y, m, d));
