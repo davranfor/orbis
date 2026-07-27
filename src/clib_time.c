@@ -41,7 +41,7 @@ database and is out of scope here; see mktime()/timegm() for that.
 
 static int leap_count(int year, int month)
 {
-    if (month <= 2)
+    if (month < 3)
     {
         year--;
     }
@@ -60,6 +60,17 @@ int is_date(int year, int month, int day)
            (day >= 1) && (day <= days_in_month(year, month));
 }
 
+/**
+ * Encodes (year, month, day) as a Julian Day Number
+ * Inverse: date_from_julian_day()
+ */
+int julian_day(int year, int month, int day)
+{
+    static const int days[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
+
+    return year * 365 + day + days[month - 1] + leap_count(year, month) + 1721060;
+}
+
 int days_in_month(int year, int month)
 {
     static const int days[2][12] =
@@ -72,22 +83,10 @@ int days_in_month(int year, int month)
 }
 
 /**
- * Tomohiko Sakamoto's Algorithm
- * Sunday = 0 ... Saturday = 6
- */
-int day_of_week(int year, int month, int day)
-{
-    static const int offset[] = { 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 };
-
-    year -= month < 3;
-    return (year + year / 4 - year / 100 + year / 400 + offset[month - 1] + day) % 7;
-}
-
-/**
  * ISO 8601 date and time standard
  * Monday = 1 ... Sunday = 7
  */
-int ISO_day_of_week(int year, int month, int day)
+int day_of_week(int year, int month, int day)
 {
     static const int offset[] = { 6, 2, 1, 4, 6, 2, 4, 0, 3, 5, 1, 3 };
 
@@ -106,27 +105,27 @@ int day_of_year(int year, int month, int day)
     return days[is_leap(year)][month - 1] + day;
 }
 
-/**
- * Encodes (year, month, day) as a Julian Day Number
- * Inverse: date_from_julian_day()
- */
-int julian_day(int year, int month, int day)
-{
-    static const int days[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
-
-    return year * 365 + day + days[month - 1] + leap_count(year, month) + 1721060;
-}
-
 /* ISO 8601 week number within the month (weeks start on Monday) */
 int week_of_month(int year, int month, int day)
 {
-    return (day - ISO_day_of_week(year, month, day) + 10) / 7;
+    return (day - day_of_week(year, month, day) + 10) / 7;
 }
 
 /* ISO 8601 week number within the year (weeks start on Monday) */
 int week_of_year(int year, int month, int day)
 {
-    return (day_of_year(year, month, day) - ISO_day_of_week(year, month, day) + 10) / 7;
+    return (day_of_year(year, month, day) - day_of_week(year, month, day) + 10) / 7;
+}
+
+void date_now(int *year, int *month, int *day)
+{
+    time_t t = time(NULL);
+    struct tm tm;
+
+    localtime_r(&t, &tm);
+    *year = tm.tm_year + 1900;
+    *month = tm.tm_mon + 1;
+    *day = tm.tm_mday;
 }
 
 /**
@@ -145,17 +144,6 @@ void date_from_julian_day(int jd, int *year, int *month, int *day)
     *day = e - (((153 * m) + 2) / 5) + 1;
     *month = m + 3 - (12 * (m / 10));
     *year = (100 * b) + d - 4800 + (m / 10);
-}
-
-void date_now(int *year, int *month, int *day)
-{
-    time_t t = time(NULL);
-    struct tm tm;
-
-    localtime_r(&t, &tm);
-    *year = tm.tm_year + 1900;
-    *month = tm.tm_mon + 1;
-    *day = tm.tm_mday;
 }
 
 datetime_t datetime_now(void)

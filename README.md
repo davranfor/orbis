@@ -169,37 +169,40 @@ sees a cheap session check, nginx does the actual byte-serving. It's a
 clean split: orbis owns the data and the rules, nginx owns everything that
 looks like "being a web server."
 
-### A known limitation, and an open question
+### Known limitations
 
 Routes are matched as exact strings (`"GET /api/users"`, bsearch'd), which
 keeps routing O(log n) with zero allocation but rules out path segments
 like `/api/users/:id/activate` — today that shape is written as
-`/api/users?id=...` instead (see `server/api/endpoints.sql`). I'd like to
-support it without giving up the zero-allocation part, and I don't have a
-clean answer yet. One direction that seems promising: capture path
-segments the same in-place way `decode_params()` already captures query
-string params (no copying, just start/length pointers) into the same
-`params` array, so `:id` in the path and `?id=` in the query string become
-indistinguishable to everything downstream (the `@eval` schema, the SQL
-binding). The open part is routing itself: a trie/radix router would need
-nodes somewhere, but since `endpoints.sql` is only ever parsed once at
-startup, building that structure as a one-time load-time allocation
-(never at request time) might be the way through. If you've solved
-something like this before, I'd like to hear about it.
+`/api/users?id=...` instead (see `server/api/endpoints.sql`). All
+parameters, whether they come from the query string, a JSON body, or the
+session, are matched by name (`@name`, `:name`, `$USER`...); there's no
+positional or `:id`-style path binding.
 
-### Another one: number parsing
-
-`json_parser.c`/`sexp_parser.c` use libc's `strtod()` to parse numbers,
-which is correct but not particularly fast — it's the main bottleneck in
-both the JSON and the schema parser. I'd be open to something lighter.
-[QuickJS's `dtoa.c`](https://github.com/bellard/quickjs/blob/master/dtoa.c)
-(`js_atod`/`js_dtoa`, stack-only, no allocation) is about as good as it
-gets for both directions of that conversion, but it's a large, tightly
-optimized, self-contained unit, and pulling it in would work against
-everything this project is trying to be. Still looking for something in
-between.
+Supporting real path segments without giving up the zero-allocation part
+would mean two things: capturing path segments in-place the same way
+`decode_params()` already captures query string params (no copying, just
+start/length pointers, into the same `params` array), and a trie/radix
+router to match them — built once at startup, when `endpoints.sql` is
+parsed, never at request time. Neither is in place yet.
 
 ## Getting started
+
+### Build and install
+
+```sh
+make
+sudo make install
+sudo ldconfig    # Linux only
+```
+
+### Unit tests
+
+```sh
+cd tests
+make
+make run
+```
 
 ### Examples
 
@@ -216,22 +219,6 @@ pattern matching and raw S-expression parsing — see `examples/`.
 `insert_user`, `get_file`...) that drive the demo server end to end with
 `curl` — a quick way to see the whole request/response shape without
 writing any code.
-
-### Unit tests
-
-```sh
-cd tests
-make
-make run
-```
-
-### Build and install
-
-```sh
-make
-sudo make install
-sudo ldconfig    # Linux only
-```
 
 ### Dependencies
 
