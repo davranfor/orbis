@@ -7,7 +7,7 @@ payload="SELECT TRUE WHERE assert(CAST(@a AS INTEGER) > CAST(@b AS INTEGER), 'a 
 # If you don't want to  return a value (i.e. checking before a statement) simply use:
 # SELECT assert(CAST(@a AS INTEGER) > CAST(@b AS INTEGER), 'a must be greater than b');
 
-curl -s -c "$BASE_DIR/cookies" -b "$BASE_DIR/cookies" -X GET "http://$SERVER_HOST/api/exec?a=1&b=1" \
+curl -s -c "$COOKIES" -b "$COOKIES" -X GET "http://$SERVER_HOST/api/exec?a=1&b=1" \
      -H "Content-Type: application/sql" \
      -d "$payload" | jq -M
 
