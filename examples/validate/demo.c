@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
     const char *path[] =
     {
         argc > 1 ? argv[1] : "test.json",
-        argc > 2 ? argv[2] : "test.lisp"
+        argc > 2 ? argv[2] : "test.sexp"
     };
 
     char *file[] = { NULL, NULL };
