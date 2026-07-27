@@ -18,6 +18,12 @@ allocations, no recursion through validator internals, just an array of
 opcodes executed in a straight line, with jumps to handle objects, arrays
 and optional properties.
 
+Zero-allocation JSON parsers already exist (jsmn, for one), but they get
+there by staying at the tokenizer level: no real tree, no validation. The
+goal here was different: keep the full tree, the schema DSL and the
+validator, and still make the part that runs the most — validating a
+document against a schema — entirely heap-free.
+
 ## A quick look
 
 Given this JSON document:
@@ -131,6 +137,16 @@ S-expressions to emit bytecode directly (`compile()` in
 engine, two completely different consumers, neither of which the parser
 itself knows about.
 
+Both parsers decode in place: escape sequences are always shorter than
+or equal to their source, so `decode_string()` overwrites the input
+buffer between the quotes as it unescapes it, instead of allocating a
+separate output string. This means `json_decode()`/`json_compile()`
+need a writable buffer — pass a string literal and the parser will most
+likely segfault the moment it tries to write into read-only memory. If
+you need to keep the original text around, copy it first; in practice
+this is rarely necessary, since the usual pattern is reading a file or a
+request body straight into a buffer you already own.
+
 Buffers reuse their own capacity: `buffer_t` (`clib_buffer.c`) separates
 "how much is written" (`length`) from "how much memory is held" (`size`),
 and `buffer_reset()` only touches the former — the underlying allocation
@@ -142,6 +158,26 @@ single, module-level response buffer in `solver.c` works the same way
 across every request the process ever handles. `buffer_clear()` — the one
 that actually frees — is reserved for connections closing or the server
 shutting down.
+
+### Strings and numbers
+
+Escape sequences (`\\`, `\/`, `\"`, `\b`, `\f`, `\n`, `\r`, `\t`, `\uXXXX`)
+are accepted anywhere inside a string, mixed freely with literal
+characters — `"line one\nline two"` is exactly as valid as `"plain"`.
+What isn't supported yet is combining two `\uXXXX` escapes into a UTF-16
+surrogate pair to represent a codepoint above U+FFFF (most emoji, for
+instance); that's on the list of pending work.
+
+JSON doesn't distinguish integers from floats, but orbis does: every
+number is tagged `JSON_INTEGER` or `JSON_REAL` depending on its literal
+shape. Internally, though, both are stored as a `double` (`struct
+json`'s `number` field), and an IEEE 754 double only has 52 bits of
+mantissa — enough to represent integers exactly up to ±2^53 - 1
+(9007199254740991), the same bound JavaScript calls
+`Number.MAX_SAFE_INTEGER`, for the same reason. An integer literal
+outside that range still parses, but as `JSON_REAL`, having already lost
+precision on the way through `strtod()`. If you need exact integers
+beyond that range, encode them as strings.
 
 ## Server
 

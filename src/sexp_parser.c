@@ -169,7 +169,7 @@ static int parse_number(sexp_event_t *event)
     }
     event->number = number;
     // Here, we classify nodes as either 'integer' or 'real'.
-    // Safe integers are numbers within the range of -2^52 to +2^52 (inclusive)
+    // Safe integers are numbers within the range of -(2^53-1) to +(2^53-1)
     if ((event->iter + strspn(event->iter, "-0123456789") >= end) &&
         IS_SAFE_INTEGER(number))
     {
