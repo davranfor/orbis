@@ -280,7 +280,8 @@ actual external dependency (`libsqlite3-dev` or equivalent).
 
 ## License
 
-GPL. See the source file headers for details.
+GPLv3 or later. See the [LICENSE](LICENSE) file and the source file headers
+for details.
 
 ## Author
 
