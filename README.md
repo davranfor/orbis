@@ -210,10 +210,12 @@ looks like "being a web server."
 Routes are matched as exact strings (`"GET /api/users"`, bsearch'd), which
 keeps routing O(log n) with zero allocation but rules out path segments
 like `/api/users/:id/activate` — today that shape is written as
-`/api/users?id=...` instead (see `server/api/endpoints.sql`). All
-parameters, whether they come from the query string, a JSON body, or the
-session, are matched by name (`@name`, `:name`, `$USER`...); there's no
-positional or `:id`-style path binding.
+`/api/users?id=...` instead (see `server/api/endpoints.sql`). Query string
+and session values are always matched by name (`@name`, `$USER`...), and a
+JSON object body binds by key (`:name`); a JSON array body does bind
+positionally, by index (`$1`, `$2`...). What's missing is positional
+binding from the route itself — there's no `:id`-style path segment feeding
+into the schema or the SQL.
 
 Supporting real path segments without giving up the zero-allocation part
 would mean two things: capturing path segments in-place the same way
