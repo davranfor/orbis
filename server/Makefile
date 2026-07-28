@@ -33,7 +33,8 @@ $(OBJ_DIR) $(DEP_DIR):
 	@mkdir -p $@
 
 clean:
-	rm -rf $(OBJ_DIR) $(TARGET)
+	rm -rf $(OBJ_DIR)
+	rm -f $(TARGET)
 
 check:
 	clang --analyze -Xanalyzer -analyzer-output=text -I$(INC_DIR) $(SRC_DIR)/*.c
