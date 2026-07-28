@@ -17,7 +17,7 @@ else
 	TARGET = liborbis.so
 endif
 
-.PHONY: all debug release install uninstall clean
+.PHONY: all debug release install uninstall clean check
 
 all: release
 
@@ -50,4 +50,7 @@ uninstall:
 clean:
 	rm -rf $(OBJDIR)
 	rm -f $(TARGET)
+
+check:
+	clang --analyze -Xanalyzer -analyzer-output=text -I$(INCDIR) $(SRCDIR)/*.c
 

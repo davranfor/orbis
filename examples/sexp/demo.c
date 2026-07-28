@@ -4,7 +4,7 @@
 #include <orbis/clib_stream.h>
 #include <orbis/sexp_parser.h>
 
-int print(const sexp_event_t *event)
+static int print(const sexp_event_t *event)
 {
     for (unsigned depth = 0; depth < event->depth; depth++)
     {
@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
 {
     setlocale(LC_NUMERIC, "C");
 
-    char *text = file_read(argc > 1 ? argv[1] : "test.lisp");
+    char *text = file_read(argc > 1 ? argv[1] : "test.sexp");
 
     if (text == NULL)
     {

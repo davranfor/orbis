@@ -35,7 +35,10 @@ $(OBJ_DIR) $(DEP_DIR):
 clean:
 	rm -rf $(OBJ_DIR) $(TARGET)
 
+check:
+	clang --analyze -Xanalyzer -analyzer-output=text -I$(INC_DIR) $(SRC_DIR)/*.c
+
 -include $(DEP)
 
-.PHONY: all debug release clean
+.PHONY: all debug release clean check
 

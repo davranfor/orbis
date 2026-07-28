@@ -3,7 +3,7 @@
 #include <locale.h>
 #include <orbis/json_parser.h>
 
-int print(const json_event_t *event)
+static int print(const json_event_t *event)
 {
     for (unsigned depth = 0; depth < event->depth; depth++)
     {
