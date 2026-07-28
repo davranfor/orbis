@@ -48,3 +48,4 @@ run: all
 
 clean:
 	rm -f $(TESTS) test_struct
+

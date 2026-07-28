@@ -15,6 +15,8 @@ OBJ := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRC))
 DEP := $(patsubst $(SRC_DIR)/%.c,$(DEP_DIR)/%.d,$(SRC))
 TARGET := server
 
+.PHONY: all debug release clean check
+
 all: release
 
 debug: CFLAGS += -DDEBUG -g
@@ -40,6 +42,4 @@ check:
 	clang --analyze -Xanalyzer -analyzer-output=text -I$(INC_DIR) $(SRC_DIR)/*.c
 
 -include $(DEP)
-
-.PHONY: all debug release clean check
 
