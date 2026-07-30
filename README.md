@@ -210,9 +210,8 @@ SQLite function backed by `session_build()`) and stores it in the `users`
 row, replacing whatever was there before — so logging in from a new place
 invalidates the old session. The token travels as an `HttpOnly`,
 `SameSite=Strict` cookie, and every request revalidates it with a plain
-lookup (`SELECT 1 FROM users WHERE id = ? AND role = ? AND token = ?`);
-there's nothing to decode or verify cryptographically, just a row that
-either matches or doesn't. `POST /api/logout` clears it via
+lookup; there's nothing to decode or verify cryptographically, just a row
+that either matches or doesn't. `POST /api/logout` clears it via
 `delete_token()`.
 
 ### Known limitations
