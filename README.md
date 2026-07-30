@@ -6,8 +6,7 @@ hashmap, pattern matching, time handling, Unicode). It compiles without
 warnings under `-std=c11 -Wpedantic -Wall -Wextra -Wmissing-prototypes
 -Wstrict-prototypes -Wconversion -Wshadow -Wcast-qual -Wnested-externs
 -Wformat=2`, uses no compiler extensions, and runs clean under Valgrind:
-0 errors, 0 leaks. The schema validator, on top of that, never touches
-the heap.
+0 errors, 0 leaks.
 
 ## Why
 
