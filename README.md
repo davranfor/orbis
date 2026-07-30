@@ -94,9 +94,10 @@ framework to learn, no macros hiding what a request actually does. For an
 internal tool, an admin panel, or a small-to-medium API, that trade-off
 holds up in practice. For saturating many cores it isn't the right tool,
 and it doesn't claim to be — scaling that far would mean running several
-`orbis` processes behind nginx (SQLite's WAL mode already tolerates one
-writer and several concurrent readers across processes), a reasonable
-path but not one this project sets out to solve itself.
+`orbis` processes behind nginx (the server's SQLite backend already
+tolerates one writer and several concurrent readers across processes in
+WAL mode), a reasonable path but not one this project sets out to solve
+itself.
 
 ### Modules
 
@@ -168,8 +169,9 @@ instance); that's on the list of pending work.
 JSON doesn't distinguish integers from floats, but orbis does: every
 number is tagged `JSON_INTEGER` or `JSON_REAL` depending on its literal
 shape. Internally, though, both are stored as a `double` (`struct
-json`'s `number` field), and an IEEE 754 double only has 52 bits of
-mantissa — enough to represent integers exactly up to ±2^53 - 1
+json`'s `number` field), and an IEEE 754 double only has 52 explicit
+mantissa bits (53 counting the implicit leading one) — enough to
+represent integers exactly up to ±2^53 - 1
 (9007199254740991), the same bound JavaScript calls
 `Number.MAX_SAFE_INTEGER`, for the same reason. An integer literal
 outside that range still parses, but as `JSON_REAL`, having already lost
@@ -201,6 +203,17 @@ entirely: nginx serves them directly via `alias`, gated by its
 sees a cheap session check, nginx does the actual byte-serving. It's a
 clean split: orbis owns the data and the rules, nginx owns everything that
 looks like "being a web server."
+
+Authentication uses opaque session tokens, not JWTs: `POST /api/login`
+generates a random 32-byte token (hex-encoded, via `new_token()`, a custom
+SQLite function backed by `session_build()`) and stores it in the `users`
+row, replacing whatever was there before — so logging in from a new place
+invalidates the old session. The token travels as an `HttpOnly`,
+`SameSite=Strict` cookie, and every request revalidates it with a plain
+lookup (`SELECT 1 FROM users WHERE id = ? AND role = ? AND token = ?`);
+there's nothing to decode or verify cryptographically, just a row that
+either matches or doesn't. `POST /api/logout` clears it via
+`delete_token()`.
 
 ### Known limitations
 
@@ -259,6 +272,19 @@ CFLAGS="-std=c11 -Wpedantic -Wall -Wextra -O2" LDLIBS="-lorbis" make demo
 
 Other examples cover parsing, decoding, sorting, date/time arithmetic,
 pattern matching and raw S-expression parsing — see `examples/`.
+
+### Server (optional)
+
+```sh
+cd server
+make
+./server
+```
+
+Default port is 8000 but you can start the server at a different one:
+```sh
+./server 8001
+```
 
 `server/scripts/` has small bash scripts (`login`, `get_users`,
 `insert_user`, `get_file`...) that drive the demo server end to end with
