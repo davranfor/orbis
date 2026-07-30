@@ -11,19 +11,16 @@ the heap.
 
 ## Why
 
-Most JSON libraries stop at parsing and encoding. orbis adds a schema
+Most JSON libraries stop at parsing and encoding. Zero-allocation parsers
+exist too (jsmn, for one), but only at the tokenizer level — no tree, no
+validation. orbis offers both: a heap-free SAX-style parser, and an
+optional tree built in dynamic memory, on top of a schema DSL and a
 validator that compiles JSON Schema-like constraints into flat, linear
-bytecode instead of walking a tree of rule objects at validation time — no
-allocations, no recursion through validator internals, just an array of
-opcodes executed in a straight line, with jumps to handle objects, arrays
-and optional properties.
-
-Zero-allocation JSON parsers exist (jsmn, for one), but only at the
-tokenizer level — no tree, no validation. This library offers both: a
-heap-free SAX-style parser, and an optional tree built in dynamic memory,
-with a schema DSL and validator on top. The validator itself is entirely
-heap-free at runtime — the only allocation happens once, when the schema
-is compiled to bytecode.
+bytecode instead of walking a tree of rule objects at validation time —
+just an array of opcodes executed in a straight line, with jumps to
+handle objects, arrays and optional properties. The validator itself is
+entirely heap-free at runtime; the only allocation happens once, when the
+schema is compiled to bytecode.
 
 ## A quick look
 
