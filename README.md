@@ -18,11 +18,12 @@ allocations, no recursion through validator internals, just an array of
 opcodes executed in a straight line, with jumps to handle objects, arrays
 and optional properties.
 
-Zero-allocation JSON parsers already exist (jsmn, for one), but they get
-there by staying at the tokenizer level: no real tree, no validation. The
-goal here was different: keep the full tree, the schema DSL and the
-validator, and still make the part that runs the most — validating a
-document against a schema — entirely heap-free.
+Zero-allocation JSON parsers exist (jsmn, for one), but only at the
+tokenizer level — no tree, no validation. This library offers both: a
+heap-free SAX-style parser, and an optional tree built in dynamic memory,
+with a schema DSL and validator on top. The validator itself is entirely
+heap-free at runtime — the only allocation happens once, when the schema
+is compiled to bytecode.
 
 ## A quick look
 
@@ -243,6 +244,16 @@ make run
 ```
 
 ### Examples
+
+Build them all at once:
+
+```sh
+cd examples
+make
+./validate/demo
+```
+
+Or one at a time:
 
 ```sh
 cd examples/validate
