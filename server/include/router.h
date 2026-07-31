@@ -15,6 +15,7 @@ typedef struct
 } endpoint_t;
 
 int router_method(const char *);
+unsigned router_methods(const char *);
 void router_load(void);
 void router_reload(void);
 const endpoint_t *router_search(const char *, int);

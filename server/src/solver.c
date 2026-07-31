@@ -28,10 +28,9 @@ enum
     HTTP_BAD_REQUEST = 400,
     HTTP_FORBIDDEN = 403,
     HTTP_NOT_FOUND = 404,
+    HTTP_METHOD_NOT_ALLOWED = 405,
     HTTP_SERVER_ERROR = 500,
 };
-
-enum { GET = 1, POST, PUT, PATCH, DELETE };
 
 static sqlite3 *db;
 static sqlite3_stmt *auth;
@@ -361,7 +360,7 @@ static int bind_content_as_array(sqlite3_stmt *stmt, const json_t *content)
 {
     for (unsigned i = 0; i < content->size; i++)
     {
-        char key[8];
+        char key[16];
         int index;
 
         snprintf(key, sizeof key, "$%u", i + 1);
@@ -424,6 +423,7 @@ static int bind_session(sqlite3_stmt *stmt)
  */
 static int handle_stmt(const json_t *request, const char *path, const char *sql)
 {
+    enum { GET = 1, POST, PUT, PATCH, DELETE };
     int total_changes = sqlite3_total_changes(db);
     int method = router_method(path);
 
@@ -534,7 +534,6 @@ static int handle_path(const json_t *request, const char *path)
 typedef struct
 {
     const endpoint_t *endpoint;
-    const char *path;
     int *status;
     int index;
 } context_t;
@@ -555,7 +554,9 @@ static void on_validate_request(const json_t *node, void *data)
 
     if (!strncmp(path, "/params", 7))
     {
-        context->endpoint = router_search(context->path, ++context->index);
+        context->endpoint = router_search(
+            context->endpoint->path, ++context->index
+        );
         if (context->endpoint != NULL)
         {
             return;
@@ -578,18 +579,9 @@ static void on_validate_request(const json_t *node, void *data)
 }
 
 static const endpoint_t *validate_request(const json_t *request,
-    const char *path, int *status)
+    const endpoint_t *endpoint, int *status)
 {
-    const endpoint_t *endpoint = router_search(path, 0);
-
-    if (endpoint == NULL)
-    {
-        write_error("Not Found", "Endpoint not found");
-        *status = HTTP_NOT_FOUND;
-        return NULL;
-    }
-
-    context_t context = { endpoint, path, status, 0 };
+    context_t context = { endpoint, status, 0 };
     const void *code = endpoint->code;
 
     while (!json_validate(request, code, on_validate_request, &context))
@@ -603,6 +595,25 @@ static const endpoint_t *validate_request(const json_t *request,
     return context.endpoint;
 }
 
+static char allow[128];
+
+static void write_allowed_methods(unsigned methods)
+{
+    static const char *list[] = { "GET", "POST", "PUT", "PATCH", "DELETE" };
+    size_t offset = 0;
+
+    for (unsigned count = 0, i = 0; i < sizeof list / sizeof list[0]; i++)
+    {
+        if (methods & (1u << i))
+        {
+            int length = snprintf(allow + offset, sizeof allow - offset,
+                count++ == 0 ? "%s" : ", %s", list[i]);
+
+            offset += (size_t)length;
+        }
+    }
+}
+
 static const buffer_t *solve_request(int status)
 {
     char headers[512];
@@ -612,6 +623,12 @@ static const buffer_t *solve_request(int status)
         "Content-Type: application/json\r\n" \
         "Content-Length: %zu\r\n\r\n", \
         session->cookie, buffer.length)
+#define write_headers_with_allow(response) \
+    snprintf(headers, sizeof headers, response "%s" \
+        "Allow: %s\r\n" \
+        "Content-Type: application/json\r\n" \
+        "Content-Length: %zu\r\n\r\n", \
+        session->cookie, allow, buffer.length)
 #define write_headers_no_content(response) \
     snprintf(headers, sizeof headers, response "%s\r\n", \
         session->cookie)
@@ -637,6 +654,9 @@ static const buffer_t *solve_request(int status)
         case HTTP_NOT_FOUND:
             write_headers(HEADER_NOT_FOUND);
             break;
+        case HTTP_METHOD_NOT_ALLOWED:
+            write_headers_with_allow(HEADER_METHOD_NOT_ALLOWED);
+            break;
         case HTTP_SERVER_ERROR:
             write_headers(HEADER_SERVER_ERROR);
             break;
@@ -660,10 +680,28 @@ const buffer_t *solver_handle(const json_t *request, const char *path,
     }
     buffer_reset(&buffer);
 
-    int status = HTTP_BAD_REQUEST;
-    const endpoint_t *endpoint = validate_request(request, path, &status);
+    const endpoint_t *endpoint = router_search(path, 0);
 
     if (endpoint == NULL)
+    {
+        unsigned allowed_methods = router_methods(path);
+
+        if (allowed_methods != 0)
+        {
+            write_allowed_methods(allowed_methods);
+            write_error("Method Not Allowed", "Method not supported");
+            return solve_request(HTTP_METHOD_NOT_ALLOWED);
+        }
+        else
+        {
+            write_error("Not Found", "Endpoint not found");
+            return solve_request(HTTP_NOT_FOUND);
+        }
+    }
+
+    int status = HTTP_BAD_REQUEST;
+
+    if (!(endpoint = validate_request(request, endpoint, &status)))
     {
         return solve_request(status);
     }

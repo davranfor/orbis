@@ -33,23 +33,7 @@ one shape of request without any branching in C.
 ---------------------------------------------------------------------
 */
 
-struct
-{
-    endpoint_t *endpoint;
-    size_t size, room;
-} router;
-
-enum
-{
-    NONE = 0x0,
-    PATH = 0x1,
-    EVAL = 0x2,
-    STMT = 0x4,
-    DONE = 0x8
-};
-
-static char *FAILURE = "";
-static char *buffer;
+struct { endpoint_t *endpoint; size_t size, room; } router;
 
 static endpoint_t *endpoint_resize(void)
 {
@@ -69,13 +53,13 @@ static endpoint_t *endpoint_resize(void)
     return &router.endpoint[router.size++];
 }
 
+static const char *methods[] =
+{
+    "GET /api/", "POST /api/", "PUT /api/", "PATCH /api/", "DELETE /api/"
+};
+
 int router_method(const char *str)
 {
-    static const char *methods[] =
-    {
-        "GET /api/", "POST /api/", "PUT /api/", "PATCH /api/", "DELETE /api/"
-    };
-
     for (int i = 0; i < (int)(sizeof methods / sizeof methods[0]); i++)
     {
         if (!strncmp(str, methods[i], strlen(methods[i])))
@@ -86,6 +70,33 @@ int router_method(const char *str)
     return 0;
 }
 
+unsigned router_methods(const char *path)
+{
+    const char *resource = strstr(path, "/api/");
+
+    if (resource == NULL)
+    {
+        return 0;
+    }
+    resource += 5;
+
+    unsigned mask = 0;
+
+    for (int i = 0; i < (int)(sizeof methods / sizeof methods[0]); i++)
+    {
+        char probe[1024];
+
+        snprintf(probe, sizeof probe, "%s%s", methods[i], resource);
+        if (router_search(probe, 0) != NULL)
+        {
+            mask |= 1u << i;
+        }
+    }
+    return mask;
+}
+
+enum { NONE = 0x0, PATH = 0x1, EVAL = 0x2, STMT = 0x4, DONE = 0x8 };
+
 static unsigned get_section(const char *str)
 {
     static const char *sections[] = { "-- @path", "-- @eval", "-- @stmt" };
@@ -94,8 +105,7 @@ static unsigned get_section(const char *str)
     {
         size_t length = strlen(sections[i]);
 
-        /* Only a match if the rest of the line is blank — rejects a
-           false hit like "-- @path-ish comment" */
+        // Only match if the rest of the line is blank
         if ((strncmp(str, sections[i], length) == 0) &&
             (strcspn(str + length, "\n") == strspn(str + length, " \r\t")))
         {
@@ -167,6 +177,7 @@ static int set_section(unsigned sections, unsigned section, char *str)
  * a real marker, or hitting '\0' — so end-of-file closes out whatever
  * section was still open exactly like a new marker would.
  */
+static char *FAILURE = "";
 static char *scan(char *str)
 {
     char *start = NULL, *end = NULL;
@@ -294,6 +305,8 @@ static int parse(char *str)
     enumerate();
     return 1;
 }
+
+static char *buffer;
 
 static void load(void)
 {

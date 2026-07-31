@@ -38,6 +38,10 @@
     "HTTP/1.1 404 Not Found\r\n" \
     "Cache-Control: no-store\r\n"
 
+#define HEADER_METHOD_NOT_ALLOWED \
+    "HTTP/1.1 405 Method Not Allowed\r\n" \
+    "Cache-Control: no-store\r\n"
+
 #define HEADER_SERVER_ERROR \
     "HTTP/1.1 500 Internal Server Error\r\n" \
     "Cache-Control: no-store\r\n"
