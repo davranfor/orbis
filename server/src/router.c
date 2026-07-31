@@ -84,7 +84,7 @@ unsigned router_methods(const char *path)
 
     for (int i = 0; i < (int)(sizeof methods / sizeof methods[0]); i++)
     {
-        char probe[1024];
+        char probe[2048];
 
         snprintf(probe, sizeof probe, "%s%s", methods[i], resource);
         if (router_search(probe, 0) != NULL)
