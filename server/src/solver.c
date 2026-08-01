@@ -555,8 +555,7 @@ static void on_validate_request(const json_t *node, void *data)
     if (!strncmp(path, "/params", 7))
     {
         context->endpoint = router_search(
-            context->endpoint->path, ++context->index
-        );
+            context->endpoint->path, ++context->index);
         if (context->endpoint != NULL)
         {
             return;

@@ -2,5 +2,5 @@
 
 source "$(dirname -- "${BASH_SOURCE[0]}")/.env"
 
-curl -i -c "$COOKIES" -b "$COOKIES" -X PUT "http://$SERVER_HOST/api/users" -w "\n"
+curl -i -c "$COOKIES" -b "$COOKIES" "http://$SERVER_HOST/api/users" -w "\n"
 
