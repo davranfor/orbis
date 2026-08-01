@@ -24,13 +24,16 @@ static buffer_t internal_server_error;
 
 static void load(void)
 {
-    const char *bad_request_content = fill_content("Bad Request", "Malformed request");
-    const char *unauthorized_content = fill_content("Unauthorized", "Login required");
-    const char *internal_server_error_content = fill_content("Internal Server Error", "Out of memory");
+    const char *content[] =
+    {
+        fill_content("Bad Request", "Malformed request"),
+        fill_content("Unauthorized", "Login required"),
+        fill_content("Internal Server Error", "Out of memory")
+    };
  
-    if (!load_buffer(&bad_request, HEADER_BAD_REQUEST, bad_request_content) ||
-        !load_buffer(&unauthorized, HEADER_UNAUTHORIZED, unauthorized_content) ||
-        !load_buffer(&internal_server_error, HEADER_INTERNAL_SERVER_ERROR, internal_server_error_content))
+    if (!load_buffer(&bad_request, HEADER_BAD_REQUEST, content[0]) ||
+        !load_buffer(&unauthorized, HEADER_UNAUTHORIZED, content[1]) ||
+        !load_buffer(&internal_server_error, HEADER_INTERNAL_SERVER_ERROR, content[2]))
     {
         perror("load_buffer");
         exit(EXIT_FAILURE);
