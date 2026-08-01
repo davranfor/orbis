@@ -550,12 +550,7 @@ static int handle_task(const json_t *request, const char *path)
     return HTTP_INTERNAL_SERVER_ERROR;
 }
 
-typedef struct
-{
-    const endpoint_t *endpoint;
-    int *status;
-    int index;
-} context_t;
+typedef struct { const endpoint_t *endpoint; int *status; } context_t;
 
 /**
  * json_validate()'s error callback, and the piece that implements the
@@ -574,19 +569,19 @@ static void on_validate_request(const json_t *node, void *data)
     if (!strncmp(path, "/params", 7))
     {
         context->endpoint = router_search(
-            context->endpoint->path, ++context->index);
+            context->endpoint->path, context->endpoint->index + 1);
         if (context->endpoint != NULL)
         {
             return;
         }
-        context->index > 1
+        context->endpoint->index > 1
             ? write_error("Bad Request", "Missing or invalid parameters")
             : write_issue(node);
     }
     else if (!strncmp(path, "/session", 8))
     {
-        *context->status = HTTP_FORBIDDEN;
         context->endpoint = NULL;
+        *context->status = HTTP_FORBIDDEN;
         write_error("Forbidden", "Access denied");
     }
     else
@@ -599,7 +594,7 @@ static void on_validate_request(const json_t *node, void *data)
 static const endpoint_t *validate_request(const json_t *request,
     const endpoint_t *endpoint, int *status)
 {
-    context_t context = { endpoint, status, 0 };
+    context_t context = { endpoint, status };
     const void *code = endpoint->code;
 
     while (!json_validate(request, code, on_validate_request, &context))
