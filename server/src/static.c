@@ -26,7 +26,7 @@ static void load(void)
 {
     const char *bad_request_content  = fill_content("Bad Request", "Malformed request");
     const char *unauthorized_content = fill_content("Unauthorized", "Login required");
-    const char *server_error_content = fill_content("Internal Server Error", "Unknown");
+    const char *server_error_content = fill_content("Internal Server Error", "Out of memory");
  
     if (!load_buffer(&bad_request,  HEADER_BAD_REQUEST,  bad_request_content)  ||
         !load_buffer(&unauthorized, HEADER_UNAUTHORIZED, unauthorized_content) ||

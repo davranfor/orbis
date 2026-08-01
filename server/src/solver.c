@@ -496,7 +496,7 @@ error:
     return error_status;
 }
 
-static int handle_path(const json_t *request, const char *path)
+static int handle_task(const json_t *request, const char *path)
 {
     if (!strcmp(path, "GET /api/auth"))
     {
@@ -688,7 +688,7 @@ const buffer_t *solver_handle(const json_t *request, const char *path,
         if (allowed_methods != 0)
         {
             write_allowed_methods(allowed_methods);
-            write_error("Method Not Allowed", "Method not supported");
+            write_error("Method Not Allowed", "See the 'Allow' header");
             return solve_request(HTTP_METHOD_NOT_ALLOWED);
         }
         else
@@ -709,6 +709,6 @@ const buffer_t *solver_handle(const json_t *request, const char *path,
 
     return stmt != NULL
         ? solve_request(handle_stmt(request, path, stmt))
-        : solve_request(handle_path(request, path));
+        : solve_request(handle_task(request, path));
 }
 
