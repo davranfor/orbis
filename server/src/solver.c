@@ -237,6 +237,25 @@ done:
     return authorized;
 }
 
+static char allow[128];
+
+static void write_allow(unsigned methods)
+{
+    static const char *list[] = { "GET", "POST", "PUT", "PATCH", "DELETE" };
+    size_t offset = 0;
+
+    for (unsigned count = 0, i = 0; i < sizeof list / sizeof list[0]; i++)
+    {
+        if (methods & (1u << i))
+        {
+            int length = snprintf(allow + offset, sizeof allow - offset,
+                count++ == 0 ? "%s" : ", %s", list[i]);
+
+            offset += (size_t)length;
+        }
+    }
+}
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 static void write_error(const char *title, const char *issue)
@@ -594,25 +613,6 @@ static const endpoint_t *validate_request(const json_t *request,
     return context.endpoint;
 }
 
-static char allow[128];
-
-static void write_allowed_methods(unsigned methods)
-{
-    static const char *list[] = { "GET", "POST", "PUT", "PATCH", "DELETE" };
-    size_t offset = 0;
-
-    for (unsigned count = 0, i = 0; i < sizeof list / sizeof list[0]; i++)
-    {
-        if (methods & (1u << i))
-        {
-            int length = snprintf(allow + offset, sizeof allow - offset,
-                count++ == 0 ? "%s" : ", %s", list[i]);
-
-            offset += (size_t)length;
-        }
-    }
-}
-
 static const buffer_t *solve_request(int status)
 {
     char headers[512];
@@ -687,7 +687,7 @@ const buffer_t *solver_handle(const json_t *request, const char *path,
 
         if (allowed_methods != 0)
         {
-            write_allowed_methods(allowed_methods);
+            write_allow(allowed_methods);
             write_error("Method Not Allowed", "See the 'Allow' header");
             return solve_request(HTTP_METHOD_NOT_ALLOWED);
         }
