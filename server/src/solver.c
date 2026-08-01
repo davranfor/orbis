@@ -29,7 +29,7 @@ enum
     HTTP_FORBIDDEN = 403,
     HTTP_NOT_FOUND = 404,
     HTTP_METHOD_NOT_ALLOWED = 405,
-    HTTP_SERVER_ERROR = 500,
+    HTTP_INTERNAL_SERVER_ERROR = 500,
 };
 
 static sqlite3 *db;
@@ -450,7 +450,7 @@ static int handle_stmt(const json_t *request, const char *path, const char *sql)
         {
             buffer_reset(&buffer);
             write_error("Internal Server Error", sqlite3_errmsg(db));
-            error_status = HTTP_SERVER_ERROR;
+            error_status = HTTP_INTERNAL_SERVER_ERROR;
             goto error;
         }
 
@@ -528,7 +528,7 @@ static int handle_task(const json_t *request, const char *path)
         return HTTP_OK;
     }
     write_error("Internal Server Error", "Unhandled task");
-    return HTTP_SERVER_ERROR;
+    return HTTP_INTERNAL_SERVER_ERROR;
 }
 
 typedef struct
@@ -656,8 +656,8 @@ static const buffer_t *solve_request(int status)
         case HTTP_METHOD_NOT_ALLOWED:
             write_headers_with_allow(HEADER_METHOD_NOT_ALLOWED);
             break;
-        case HTTP_SERVER_ERROR:
-            write_headers(HEADER_SERVER_ERROR);
+        case HTTP_INTERNAL_SERVER_ERROR:
+            write_headers(HEADER_INTERNAL_SERVER_ERROR);
             break;
     }
     buffer_insert(&buffer, 0, headers, strlen(headers));
@@ -667,7 +667,7 @@ static const buffer_t *solve_request(int status)
         puts(buffer.text);
     }
 #endif
-    return buffer.length ? &buffer : static_server_error();
+    return buffer.length ? &buffer : static_internal_server_error();
 }
 
 const buffer_t *solver_handle(const json_t *request, const char *path,

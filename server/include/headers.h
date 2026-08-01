@@ -42,7 +42,7 @@
     "HTTP/1.1 405 Method Not Allowed\r\n" \
     "Cache-Control: no-store\r\n"
 
-#define HEADER_SERVER_ERROR \
+#define HEADER_INTERNAL_SERVER_ERROR \
     "HTTP/1.1 500 Internal Server Error\r\n" \
     "Cache-Control: no-store\r\n"
 

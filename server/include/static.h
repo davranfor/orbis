@@ -13,7 +13,7 @@ void static_load(void);
 void static_reload(void);
 const buffer_t *static_bad_request(void);
 const buffer_t *static_unauthorized(void);
-const buffer_t *static_server_error(void);
+const buffer_t *static_internal_server_error(void);
 
 #endif
 
