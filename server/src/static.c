@@ -16,8 +16,8 @@ static buffer_t internal_server_error;
 
 #define fill_content(title, issue) \
     "{\"title\": \"" title "\", \"issue\": \"" issue "\"}"
-#define load_buffer(buffer, headers, content) \
-    buffer_format(buffer, headers \
+#define load_buffer(buffer, header, content) \
+    buffer_format(buffer, header \
         "Content-Type: application/json\r\n" \
         "Content-Length: %zu\r\n\r\n%s", \
         strlen(content), content)
