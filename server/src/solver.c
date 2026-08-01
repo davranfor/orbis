@@ -617,19 +617,19 @@ static const buffer_t *solve_request(int status)
 {
     char headers[512];
 
-#define write_headers(response) \
-    snprintf(headers, sizeof headers, response "%s" \
+#define write_headers(header) \
+    snprintf(headers, sizeof headers, header "%s" \
         "Content-Type: application/json\r\n" \
         "Content-Length: %zu\r\n\r\n", \
         session->cookie, buffer.length)
-#define write_headers_with_allow(response) \
-    snprintf(headers, sizeof headers, response "%s" \
+#define write_headers_with_allow(header) \
+    snprintf(headers, sizeof headers, header "%s" \
         "Allow: %s\r\n" \
         "Content-Type: application/json\r\n" \
         "Content-Length: %zu\r\n\r\n", \
         session->cookie, allow, buffer.length)
-#define write_headers_no_content(response) \
-    snprintf(headers, sizeof headers, response "%s\r\n", \
+#define write_headers_no_content(header) \
+    snprintf(headers, sizeof headers, header "%s\r\n", \
         session->cookie)
  
     switch (status)
