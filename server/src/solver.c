@@ -273,15 +273,14 @@ static void write_error(const char *title, const char *issue)
 
     json_buffer_encode(&buffer, &message, 2);
 }
-#pragma GCC diagnostic pop
 
-static void write_issue(const json_t *node)
+static void write_fault(const char *title, const json_t *node)
 {
     const json_t message =
     {
         .child = (json_t [])
         {
-            { .key = "title", .string = "Bad Request", .type = JSON_STRING },
+            { .key = "title", .string = (char *)title, .type = JSON_STRING },
             { .key = "issue", .child = node->child, .type = node->type, .size = node->size }
         },
         .type = JSON_OBJECT,
@@ -290,6 +289,7 @@ static void write_issue(const json_t *node)
 
     json_buffer_encode(&buffer, &message, 2);
 }
+#pragma GCC diagnostic pop
 
 /**
  * Three independent binding conventions feed one sqlite3_stmt:
@@ -557,7 +557,7 @@ typedef struct { const endpoint_t *endpoint; int *status; } context_t;
  * "same path, several @eval variants" overload described in router.c.
  * A validation failure under /params means this variant's schema
  * just doesn't match the request; try the next endpoint sharing the
- * same path (router_search(path, ++index)) instead of giving up.
+ * same path (router_search(path, index + 1)) instead of giving up.
  * A failure anywhere else (a bad /session, or the request body itself)
  * is a real error and is reported as such.
  */
@@ -569,14 +569,16 @@ static void on_validate_request(const json_t *node, void *data)
     if (!strncmp(path, "/params", 7))
     {
         context->endpoint = router_search(
-            context->endpoint->path, context->endpoint->index + 1);
+            context->endpoint->path,
+            context->endpoint->index + 1
+        );
         if (context->endpoint != NULL)
         {
             return;
         }
         context->endpoint->index > 1
             ? write_error("Bad Request", "Missing or invalid parameters")
-            : write_issue(node);
+            : write_fault("Bad Request", node);
     }
     else if (!strncmp(path, "/session", 8))
     {
@@ -587,7 +589,7 @@ static void on_validate_request(const json_t *node, void *data)
     else
     {
         context->endpoint = NULL;
-        write_issue(node);
+        write_fault("Bad request", node);
     }
 }
 
