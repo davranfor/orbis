@@ -575,7 +575,7 @@ static void on_validate_request(const json_t *node, void *data)
         {
             return;
         }
-        index > 1
+        index > 0
             ? write_error("Bad Request", "Missing or invalid parameters")
             : write_fault("Bad Request", node);
     }
