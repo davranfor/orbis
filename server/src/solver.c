@@ -568,15 +568,14 @@ static void on_validate_request(const json_t *node, void *data)
 
     if (!strncmp(path, "/params", 7))
     {
-        context->endpoint = router_search(
-            context->endpoint->path,
-            context->endpoint->index + 1
-        );
+        int index = context->endpoint->index;
+
+        context->endpoint = router_search(context->endpoint->path, index + 1);
         if (context->endpoint != NULL)
         {
             return;
         }
-        context->endpoint->index > 1
+        index > 1
             ? write_error("Bad Request", "Missing or invalid parameters")
             : write_fault("Bad Request", node);
     }
