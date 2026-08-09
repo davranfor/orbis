@@ -74,8 +74,8 @@ static const buffer_t *parse_headers(request_t *request, char *str)
 
     /**
      * Cuts 'str' right after the blank line, so it ends there as its
-     *  own C string and router_method()/strstr() below never scan
-     *  past the headers into the body
+     * own C string and router_method()/strstr() below never scan
+     * past the headers into the body
      */
     char *content = strstr(str, "\r\n\r\n") + 4;
 
