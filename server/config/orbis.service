@@ -6,7 +6,7 @@ Before=nginx.service
 [Service]
 Type=simple
 User=some_user_name
-Group=some_grup_name
+Group=some_group_name
 WorkingDirectory=/path/to/orbis/server
 
 ExecStart=/path/to/orbis/server/scripts/start
@@ -31,7 +31,7 @@ WantedBy=multi-user.target
 # ./server $SERVER_PORT
 # to
 # exec stdbuf -oL -eL ./server $SERVER_PORT
-# in order to force line buffering on stdin and stdout
+# in order to force line buffering on stdout and stderr
 
 # Replace User, Group, WorkingDirectory and Exec*= with the proper values, then:
 # sudo cp orbis.service /etc/systemd/system/
