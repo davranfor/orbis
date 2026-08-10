@@ -1,0 +1,47 @@
+[Unit]
+Description=Orbis HTTP Server
+After=network.target
+Before=nginx.service
+
+[Service]
+Type=simple
+User=some_user_name
+Group=some_grup_name
+WorkingDirectory=/path/to/orbis/server
+
+ExecStart=/path/to/orbis/server/scripts/start
+ExecReload=/path/to/orbis/server/scripts/reload
+ExecStop=/path/to/orbis/server/scripts/stop
+
+TimeoutStopSec=15
+Restart=on-failure
+RestartSec=2
+
+StandardOutput=append:/var/log/orbis.log
+StandardError=append:/var/log/orbis.log
+
+[Install]
+WantedBy=multi-user.target
+
+# NOTES:
+# scripts/stop and scripts/reload require a prior successful
+# scripts/login (cookie stored in storage/cookies) — run it once manually
+# before relying on `systemctl stop/reload orbis`.
+# Don't forget to modify scripts/start if needed, switch from:
+# ./server $SERVER_PORT
+# to
+# exec stdbuf -oL -eL ./server $SERVER_PORT
+# in order to force line buffering on stdin and stdout
+
+# Replace User, Group, WorkingDirectory and Exec*= with the proper values, then:
+# sudo cp orbis.service /etc/systemd/system/
+# sudo touch /var/log/orbis.log
+# sudo chown some_user_name:some_group_name /var/log/orbis.log
+# sudo systemctl daemon-reload
+# sudo systemctl enable --now orbis.service
+
+# Verify:
+# sudo systemctl status orbis
+# curl -i http://localhost:8000/
+# tail -f /var/log/orbis.log
+
