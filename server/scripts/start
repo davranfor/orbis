@@ -3,5 +3,5 @@
 source "$(dirname -- "${BASH_SOURCE[0]}")/.env"
 cd "$BASE_DIR" || exit 1
 
-./server $SERVER_PORT
+exec ./server $SERVER_PORT
 

@@ -28,7 +28,7 @@ WantedBy=multi-user.target
 # scripts/login (cookie stored in storage/cookies) — run it once manually
 # before relying on `systemctl stop/reload orbis`.
 # Don't forget to modify scripts/start if needed, switch from:
-# ./server $SERVER_PORT
+# exec ./server $SERVER_PORT
 # to
 # exec stdbuf -oL -eL ./server $SERVER_PORT
 # in order to force line buffering on stdout and stderr
