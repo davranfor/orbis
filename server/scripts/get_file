@@ -1,6 +1,5 @@
 #!/bin/bash
 
 source "$(dirname -- "${BASH_SOURCE[0]}")/.env"
-
 curl -i -c "$COOKIES" -b "$COOKIES" "http://$PROXY_HOST/files/test.txt" -w "\n"
 

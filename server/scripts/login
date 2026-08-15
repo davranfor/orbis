@@ -7,7 +7,6 @@ email="$1"
 
 read -s -p "Password: " password
 echo
-
 source "$(dirname -- "${BASH_SOURCE[0]}")/.env"
 
 payload=$(printf '{"email": "%s", "password": "%s"}' "$email" "$password")

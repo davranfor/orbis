@@ -1,6 +1,5 @@
 #!/bin/bash
 
 source "$(dirname -- "${BASH_SOURCE[0]}")/.env"
-
 curl -i -c "$COOKIES" -b "$COOKIES" -X POST "http://$SERVER_HOST/api/logout" -w "\n"
 
