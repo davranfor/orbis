@@ -1,0 +1,16 @@
+#!/bin/bash
+
+source "$(dirname -- "${BASH_SOURCE[0]}")/.env"
+
+# Don't forget to start the SQL with
+# PRAGMA foreign_keys = ON;
+# if you're running a write query (INSERT/UPDATE/DELETE).
+
+SQL=$(cat << 'EOF'
+SELECT id, role, name, email
+FROM users;
+EOF
+)
+
+sqlite3 -box "$BASE_DIR/storage/app.db" "$SQL"
+
