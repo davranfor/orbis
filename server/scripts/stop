@@ -2,5 +2,5 @@
 
 source "$(dirname -- "${BASH_SOURCE[0]}")/.env"
 
-curl -i -c "$COOKIES" -b "$COOKIES" -X POST "http://$SERVER_HOST/api/stop" -w "\n"
+exec stdbuf -oL -eL curl -sS -i -c "$COOKIES" -b "$COOKIES" -X POST "http://$SERVER_HOST/api/stop" -w "\n"
 

@@ -2,5 +2,5 @@
 
 source "$(dirname -- "${BASH_SOURCE[0]}")/.env"
 cd "$BASE_DIR" || exit 1
-exec ./server $SERVER_PORT
+exec stdbuf -oL -eL ./server $SERVER_PORT
 

@@ -27,11 +27,6 @@ WantedBy=multi-user.target
 # scripts/stop and scripts/reload require a prior successful
 # scripts/login (cookie stored in storage/cookies) — run it once manually
 # before relying on `systemctl stop/reload orbis`.
-# Don't forget to modify scripts/start if needed, switch from:
-# exec ./server $SERVER_PORT
-# to
-# exec stdbuf -oL -eL ./server $SERVER_PORT
-# in order to force line buffering on stdout and stderr
 
 # Replace User, Group, WorkingDirectory and Exec*= with the proper values, then:
 # sudo cp orbis.service /etc/systemd/system/
