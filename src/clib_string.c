@@ -66,10 +66,10 @@ char *string_vprint(const char *fmt, va_list args)
  * memmem implementation
  * Search for a substring (substr) within a larger string (str) given the lengths
  */
-char *string_search(const char *str, size_t max, const char *substr, size_t length)
-{
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
+char *string_search(const char *str, size_t max, const char *substr, size_t length)
+{
     if (length == 0)
     {
         return (char *)str;
@@ -86,8 +86,8 @@ char *string_search(const char *str, size_t max, const char *substr, size_t leng
         }
     }
     return NULL;
-#pragma GCC diagnostic pop
 }
+#pragma GCC diagnostic pop
 
 /* Truncates str at a valid UTF-8 boundary at or before length */ 
 size_t string_truncate(char *str, size_t length)
