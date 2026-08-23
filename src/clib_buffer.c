@@ -76,9 +76,9 @@ char *buffer_repeat(buffer_t *buffer, char chr, size_t count)
 
 char *buffer_insert(buffer_t *buffer, size_t index, const char *text, size_t length)
 {
-    if (index >= buffer->length)
+    if (index > buffer->length)
     {
-        return buffer_append(buffer, text, length);
+        index = buffer->length;
     }
     if (buffer_resize(buffer, length) == NULL)
     {
@@ -86,8 +86,9 @@ char *buffer_insert(buffer_t *buffer, size_t index, const char *text, size_t len
     }
     memmove(buffer->text + index + length,
             buffer->text + index,
-            buffer->length - index + 1);
+            buffer->length - index);
     memcpy(buffer->text + index, text, length);
+    buffer->text[buffer->length + length] = '\0';
     buffer->length += length;
     return buffer->text;
 }
