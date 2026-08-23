@@ -51,16 +51,14 @@ static char *write_integer(buffer_t *buffer, double number)
 static char *write_real(buffer_t *buffer, double number)
 {
     char str[NUMBER_CHARS + 1];
+    int length = snprintf(str, sizeof str, "%.*g", MAX_DECIMALS, number);
 
-    snprintf(str, sizeof str, "%.*g", MAX_DECIMALS, number);
-
-    /* Dot followed by trailing zeros are removed when %g is used */
-    int done = str[strspn(str, "-0123456789")] != '\0';
-
-    buffer_write(buffer, str);
-
-    /* Write the fractional part if applicable */
-    return done ? buffer->text : buffer_write(buffer, ".0");
+    // Dot followed by trailing zeros are removed when %g is used
+    if (str[strspn(str, "-0123456789")] == '\0')
+    {
+        memcpy(str + length, ".0", 3);
+    }
+    return buffer_write(buffer, str);
 }
 
 static char *write_string(buffer_t *buffer, const char *str)
