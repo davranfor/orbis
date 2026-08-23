@@ -40,53 +40,32 @@ void json_set_encoding(enum json_encoding mode)
 #define MAX_DECIMALS 17
 #define NUMBER_CHARS 24
 
-#define write_number(buffer, ...) (size_t) \
-    snprintf(buffer->text + buffer->length, NUMBER_CHARS + 1, __VA_ARGS__)
-
 static char *write_integer(buffer_t *buffer, double number)
 {
-    if (buffer->size - buffer->length <= NUMBER_CHARS)
-    {
-        CHECK(buffer_resize(buffer, NUMBER_CHARS));
-    }
+    char str[NUMBER_CHARS + 1];
 
-    size_t length = write_number(buffer, "%.0f", number);
-
-    if (length > NUMBER_CHARS)
-    {
-        buffer_set_error(buffer, BUFFER_ERROR_FORMAT);
-        return NULL;
-    }
-    buffer->length += length;
-    return buffer->text;
+    snprintf(str, sizeof str, "%.0f", number);
+    return buffer_write(buffer, str);
 }
 
 static char *write_real(buffer_t *buffer, double number)
 {
-    if (buffer->size - buffer->length <= NUMBER_CHARS)
-    {
-        CHECK(buffer_resize(buffer, NUMBER_CHARS));
-    }
+    char str[NUMBER_CHARS + 1];
 
-    size_t length = write_number(buffer, "%.*g", MAX_DECIMALS, number);
-
-    if (length > NUMBER_CHARS)
-    {
-        buffer_set_error(buffer, BUFFER_ERROR_FORMAT);
-        return NULL;
-    }
+    snprintf(str, sizeof str, "%.*g", MAX_DECIMALS, number);
 
     /* Dot followed by trailing zeros are removed when %g is used */
-    int done = strspn(buffer->text + buffer->length, "-0123456789") != length;
+    int done = str[strspn(str, "-0123456789")] != '\0';
 
-    buffer->length += length;
+    buffer_write(buffer, str);
+
     /* Write the fractional part if applicable */
     return done ? buffer->text : buffer_write(buffer, ".0");
 }
 
 static char *write_string(buffer_t *buffer, const char *str)
 {
-    CHECK(buffer_put(buffer, '"'));
+    buffer_put(buffer, '"');
 
     const char *ptr = str;
 
@@ -98,8 +77,8 @@ static char *write_string(buffer_t *buffer, const char *str)
         {
             const char seq[] = { '\\', esc, '\0' };
 
-            CHECK(buffer_append(buffer, ptr, (size_t)(str - ptr)));
-            CHECK(buffer_append(buffer, seq, 2));
+            buffer_append(buffer, ptr, (size_t)(str - ptr));
+            buffer_append(buffer, seq, 2);
             ptr = ++str;
         }
         else if (is_cntrl(*str) || ((encoding == JSON_ASCII) && !is_ascii(*str)))
@@ -107,8 +86,8 @@ static char *write_string(buffer_t *buffer, const char *str)
             char seq[sizeof("\\u0123")] = { '\0' };
             size_t length = encode_hex(str, seq);
 
-            CHECK(buffer_append(buffer, ptr, (size_t)(str - ptr)));
-            CHECK(buffer_append(buffer, seq, 6));
+            buffer_append(buffer, ptr, (size_t)(str - ptr));
+            buffer_append(buffer, seq, 6);
             str += length;
             ptr = str;
         }
@@ -117,7 +96,7 @@ static char *write_string(buffer_t *buffer, const char *str)
             str++;
         }
     }
-    CHECK(buffer_append(buffer, ptr, (size_t)(str - ptr)));
+    buffer_append(buffer, ptr, (size_t)(str - ptr));
     return buffer_put(buffer, '"');
 }
 
