@@ -10,7 +10,7 @@
 /**
  * child/string/number are mutually exclusive per node->type.
  * index/span only hold meaning transiently while json_decode()
- * (json_writer.c) rebuilds the tree from parser events; once decoding
+ * (json_decoder.c) rebuilds the tree from parser events; once decoding
  * finishes every container's slot holds 'child' and is never read as
  * index/span again.
  */

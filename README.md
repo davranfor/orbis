@@ -47,7 +47,7 @@ Given this JSON document:
 
 ```c
 #include <orbis/clib_stream.h>
-#include <orbis/json_writer.h>
+#include <orbis/json_decoder.h>
 #include <orbis/json_validator.h>
 
 static void on_error(const json_t *node, void *data)
@@ -129,7 +129,7 @@ build anything, they walk the input once and fire a callback per token
 matching `}`, and so on) — the same shape as SAX parsing in the XML world.
 The parser has no opinion about what happens with an event; the callback
 decides. `json_decode()` uses this to build a `json_t` tree (`decode()` in
-`json_writer.c`); `json_compile()` uses the exact same mechanism over
+`json_decoder.c`); `json_compile()` uses the exact same mechanism over
 S-expressions to emit bytecode directly (`compile()` in
 `json_validator.c`) — no tree involved at all for schemas. One parsing
 engine, two completely different consumers, neither of which the parser
