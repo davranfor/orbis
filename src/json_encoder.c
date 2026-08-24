@@ -11,7 +11,7 @@
 #include "clib_check.h"
 #include "clib_unicode.h"
 #include "json_private.h"
-#include "json_buffer.h"
+#include "json_encoder.h"
 
 /**
  * The 'encoding' static global variable can take the following values:
@@ -224,7 +224,7 @@ static int encode_tree(buffer_t *buffer, const json_t *node,
  * If the passed node IS a property, add parent and grandparent: [{key: value}]
  * If the passed node IS NOT a property, add parent: [value]
  */
-static char *buffer_encode(buffer_t *buffer, const json_t *node, size_t indent)
+static char *encode(buffer_t *buffer, const json_t *node, size_t indent)
 {
     if (node == NULL)
     {
@@ -264,13 +264,13 @@ char *json_encode(const json_t *node, size_t indent)
 {
     buffer_t buffer = { 0 };
 
-    return buffer_encode(&buffer, node, indent);
+    return encode(&buffer, node, indent);
 }
 
 /* Serializes into a provided buffer */
 char *json_buffer_encode(buffer_t *buffer, const json_t *node, size_t indent)
 {
-    if (buffer && buffer_encode(buffer, node, indent))
+    if (buffer && encode(buffer, node, indent))
     {
         return buffer->text;
     }
@@ -282,7 +282,7 @@ char *json_stringify(const json_t *node)
 {
     buffer_t buffer = { 0 };
 
-    return buffer_encode(&buffer, node, 0);
+    return encode(&buffer, node, 0);
 }
 
 #define write_file(buffer, file) \
@@ -297,7 +297,7 @@ int json_write(const json_t *node, FILE *file, size_t indent)
     {
         buffer_t buffer = { 0 };
 
-        if (buffer_encode(&buffer, node, indent))
+        if (encode(&buffer, node, indent))
         {
             rc = write_file(buffer, file);
         }
@@ -315,7 +315,7 @@ int json_write_line(const json_t *node, FILE *file)
     {
         buffer_t buffer = { 0 };
 
-        if (buffer_encode(&buffer, node, 0) && buffer_put(&buffer, '\n'))
+        if (encode(&buffer, node, 0) && buffer_put(&buffer, '\n'))
         {
             rc = write_file(buffer, file);
         }
@@ -334,7 +334,7 @@ int json_write_file(const json_t *node, const char *path, size_t indent)
     {
         buffer_t buffer = { 0 };
 
-        if (buffer_encode(&buffer, node, indent))
+        if (encode(&buffer, node, indent))
         {
             rc = write_file(buffer, file);
         }

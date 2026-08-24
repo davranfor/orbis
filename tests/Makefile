@@ -4,15 +4,15 @@ LDLIBS  = -lm
 SRCDIR  = ../src
 
 COMMON  = $(SRCDIR)/clib_math.c $(SRCDIR)/clib_unicode.c $(SRCDIR)/json_parser.c
-WRITER  = $(COMMON) $(SRCDIR)/json_writer.c
-READER  = $(WRITER) $(SRCDIR)/json_reader.c $(SRCDIR)/clib_match.c $(SRCDIR)/clib_regex.c $(SRCDIR)/clib_time.c
+DECODER = $(COMMON) $(SRCDIR)/json_decoder.c
+READER  = $(DECODER) $(SRCDIR)/json_reader.c $(SRCDIR)/clib_match.c $(SRCDIR)/clib_regex.c $(SRCDIR)/clib_time.c
 POINTER = $(READER) $(SRCDIR)/json_pointer.c
 BUFFER  = $(SRCDIR)/clib_math.c $(SRCDIR)/clib_unicode.c $(SRCDIR)/clib_buffer.c
-JSON_BUFFER = $(WRITER) $(SRCDIR)/clib_buffer.c $(SRCDIR)/json_buffer.c
-SORTER  = $(WRITER) $(SRCDIR)/json_sorter.c
+ENCODER = $(DECODER) $(SRCDIR)/clib_buffer.c $(SRCDIR)/json_encoder.c
+SORTER  = $(DECODER) $(SRCDIR)/json_sorter.c
 VALIDATOR = $(READER) $(SRCDIR)/sexp_parser.c $(SRCDIR)/clib_string.c $(SRCDIR)/json_validator.c
 
-TESTS = test_parser test_writer test_reader test_pointer test_buffer test_encode test_sorter test_validator
+TESTS = test_parser test_decode test_reader test_pointer test_buffer test_encode test_sorter test_validator
 
 .PHONY: all run clean
 
@@ -21,7 +21,7 @@ all: $(TESTS)
 test_parser: test_parser.c $(COMMON)
 	$(CC) $(CFLAGS) $^ $(LDLIBS) -o $@
 
-test_writer: test_writer.c $(WRITER)
+test_decode: test_decode.c $(DECODER)
 	$(CC) $(CFLAGS) $^ $(LDLIBS) -o $@
 
 test_reader: test_reader.c $(READER)
@@ -33,7 +33,7 @@ test_pointer: test_pointer.c $(POINTER)
 test_buffer: test_buffer.c $(BUFFER)
 	$(CC) $(CFLAGS) $^ $(LDLIBS) -o $@
 
-test_encode: test_encode.c $(JSON_BUFFER)
+test_encode: test_encode.c $(ENCODER)
 	$(CC) $(CFLAGS) $^ $(LDLIBS) -o $@
 
 test_sorter: test_sorter.c $(SORTER)

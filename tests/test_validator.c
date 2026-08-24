@@ -10,7 +10,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "test.h"
-#include "json_writer.h"
+#include "json_decoder.h"
 #include "json_reader.h"
 #include "json_validator.h"
 

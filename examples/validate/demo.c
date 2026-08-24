@@ -8,8 +8,8 @@
 #include <stdlib.h>
 #include <locale.h>
 #include <orbis/clib_stream.h>
-#include <orbis/json_buffer.h>
-#include <orbis/json_writer.h>
+#include <orbis/json_decoder.h>
+#include <orbis/json_encoder.h>
 #include <orbis/json_validator.h>
 
 static void on_error(const json_t *node, void *data)

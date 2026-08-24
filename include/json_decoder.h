@@ -4,8 +4,8 @@
  *  \copyright GNU General Public License v3 or later.
  */
 
-#ifndef JSON_WRITER_H
-#define JSON_WRITER_H
+#ifndef JSON_DECODER_H
+#define JSON_DECODER_H
 
 #include "json_header.h"
 

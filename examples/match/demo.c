@@ -9,7 +9,7 @@
 #include <locale.h>
 #include <orbis/clib_stream.h>
 #include <orbis/json_reader.h>
-#include <orbis/json_writer.h>
+#include <orbis/json_decoder.h>
 
 int main(int argc, char *argv[])
 {

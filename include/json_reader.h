@@ -4,8 +4,8 @@
  *  \copyright GNU General Public License v3 or later.
  */
 
-#ifndef JSON_READER_H
-#define JSON_READER_H
+#ifndef JSON_AUDITOR_H
+#define JSON_AUDITOR_H
 
 #include <stddef.h>
 #include <stdint.h>

@@ -7,8 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "test.h"
-#include "json_writer.h"
-#include "json_buffer.h"
+#include "json_decoder.h"
+#include "json_encoder.h"
 
 /* json_encode / json_stringify: compact and indented serialisation */
 static void test_encode(void)

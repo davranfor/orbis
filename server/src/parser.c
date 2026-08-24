@@ -12,7 +12,6 @@
 #include <orbis/json_private.h>
 #include <orbis/json_header.h>
 #include <orbis/json_parser.h>
-#include <orbis/json_buffer.h>
 #include "headers.h"
 #include "session.h"
 #include "config.h"

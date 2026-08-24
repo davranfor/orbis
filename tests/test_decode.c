@@ -8,7 +8,7 @@
 #include <string.h>
 #include "test.h"
 #include "json_private.h"
-#include "json_writer.h"
+#include "json_decoder.h"
 
 /* NULL and malformed input */
 static void test_invalid(void)

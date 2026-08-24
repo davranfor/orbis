@@ -4,8 +4,8 @@
  *  \copyright GNU General Public License v3 or later.
  */
 
-#ifndef JSON_BUFFER_H
-#define JSON_BUFFER_H
+#ifndef JSON_ENCODER_H
+#define JSON_ENCODER_H
 
 #include <stdio.h> 
 #include "clib_buffer.h"
