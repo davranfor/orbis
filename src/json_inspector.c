@@ -467,17 +467,18 @@ static int walk(const json_t *node, unsigned short depth, json_walk_callback cal
  */
 int json_walk(const json_t *node, json_walk_callback callback, void *data)
 {
-    if ((node != NULL) && (callback != NULL))
+    if ((node == NULL) || (callback == NULL))
     {
-        const json_t parent =
-        {
-            .child = json_cast(node),
-            .type = node->key ? JSON_OBJECT : JSON_ARRAY,
-            .size = 1
-        };
-
-        return walk(&parent, 0, callback, data);
+        return 0;
     }
-    return 0;
+
+    const json_t parent =
+    {
+        .child = json_cast(node),
+        .type = node->key ? JSON_OBJECT : JSON_ARRAY,
+        .size = 1
+    };
+
+    return walk(&parent, 0, callback, data);
 }
 
