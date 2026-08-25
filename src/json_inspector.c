@@ -440,7 +440,8 @@ int json_compare(const json_t *a, const json_t *b)
 
 
 /* json_walk recursive helper sending 'node' along with 'depth' and 'data' */
-static int walk(const json_t *node, unsigned short depth, json_walk_callback callback, void *data)
+static int walk(const json_t *node, unsigned short depth,
+    json_walk_callback callback, void *data)
 {
     for (unsigned i = 0; i < node->size; i++)
     {
@@ -472,12 +473,7 @@ int json_walk(const json_t *node, json_walk_callback callback, void *data)
         return 0;
     }
 
-    const json_t parent =
-    {
-        .child = json_cast(node),
-        .type = node->key ? JSON_OBJECT : JSON_ARRAY,
-        .size = 1
-    };
+    const json_t parent = { .child = json_cast(node), .size = 1 };
 
     return walk(&parent, 0, callback, data);
 }
