@@ -11,8 +11,8 @@
 #include <orbis/clib_math.h>
 #include <orbis/clib_stream.h>
 #include <orbis/json_private.h>
-#include <orbis/json_reader.h>
 #include <orbis/json_encoder.h>
+#include <orbis/json_inspector.h>
 #include <orbis/json_validator.h>
 #include <sqlite3.h>
 #include "headers.h"

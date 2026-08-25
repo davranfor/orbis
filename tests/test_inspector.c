@@ -9,7 +9,7 @@
 #include <math.h>
 #include "test.h"
 #include "json_decoder.h"
-#include "json_reader.h"
+#include "json_inspector.h"
 
 /*
  * Global fixtures decoded once in main(), freed at exit.

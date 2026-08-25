@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include "test.h"
 #include "json_decoder.h"
-#include "json_reader.h"
+#include "json_inspector.h"
 #include "json_validator.h"
 
 /*

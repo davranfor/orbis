@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <orbis/json_reader.h>
+#include <orbis/json_inspector.h>
 #include <orbis/json_decoder.h>
 #include <orbis/json_encoder.h>
 #include <orbis/json_sorter.h>

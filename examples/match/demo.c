@@ -8,8 +8,8 @@
 #include <stdlib.h>
 #include <locale.h>
 #include <orbis/clib_stream.h>
-#include <orbis/json_reader.h>
 #include <orbis/json_decoder.h>
+#include <orbis/json_inspector.h>
 
 int main(int argc, char *argv[])
 {

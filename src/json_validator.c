@@ -10,12 +10,12 @@
 #include <string.h>
 #include <math.h>
 #include "clib_check.h"
-#include "clib_string.h"
 #include "clib_regex.h"
 #include "clib_match.h"
+#include "clib_string.h"
 #include "sexp_parser.h"
 #include "json_private.h"
-#include "json_reader.h"
+#include "json_inspector.h"
 #include "json_validator.h"
 
 /*

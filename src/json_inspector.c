@@ -9,7 +9,7 @@
 #include "clib_match.h"
 #include "clib_regex.h"
 #include "json_private.h"
-#include "json_reader.h"
+#include "json_inspector.h"
 
 char *json_key(const json_t *node)
 {
