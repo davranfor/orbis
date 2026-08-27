@@ -95,6 +95,19 @@ unsigned router_methods(const char *path)
     return mask;
 }
 
+int router_set_statements(int (*callback)(statement_t *))
+{
+    for (size_t i = 0; i < router.size; i++)
+    {
+        if (!callback(&router.endpoint[i].statement))
+        {
+            fprintf(stderr, "Can't compile '%s' @stmt\n", router.endpoint[i].path);
+            return 0;
+        }
+    }
+    return 1;
+}
+
 enum { NONE = 0x0, PATH = 0x1, EVAL = 0x2, STMT = 0x4, DONE = 0x8 };
 
 static unsigned get_section(const char *str)
@@ -146,8 +159,8 @@ static int set_section(unsigned sections, unsigned section, char *str)
         }
         case EVAL:
         {
-            endpoint->code = json_compile(str);
-            if (endpoint->code == NULL)
+            endpoint->schema = json_compile(str);
+            if (endpoint->schema == NULL)
             {
                 fprintf(stderr, "Can't compile the 'eval' part\n");
                 return 0;
@@ -156,9 +169,9 @@ static int set_section(unsigned sections, unsigned section, char *str)
         }
         case STMT:
         {
-            if (strncmp(str, "none", 4))
+            if (strncmp(str, "none", 4) != 0)
             {
-                endpoint->stmt = str;
+                endpoint->statement.sql = str;
             }
             break;
         }
@@ -328,7 +341,7 @@ static void unload(void)
 {
     for (size_t i = 0; i < router.size; i++)
     {
-        free(router.endpoint[i].code);
+        free(router.endpoint[i].schema);
     }
     free(router.endpoint);
     router.endpoint = NULL;

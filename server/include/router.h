@@ -7,15 +7,29 @@
 #ifndef ROUTER_H
 #define ROUTER_H
 
+#include <stddef.h>
+
+enum { STATEMENT_MODE_READ, STATEMENT_MODE_WRITE };
+
 typedef struct
 {
-    const char *path, *stmt;
-    void *code;
+    const char *sql;
+    size_t offset;
+    size_t size;
+    int mode;
+} statement_t;
+
+typedef struct
+{
+    const char *path;
+    void *schema;
+    statement_t statement;
     int index;
 } endpoint_t;
 
 int router_method(const char *);
 unsigned router_methods(const char *);
+int router_set_statements(int (*)(statement_t *));
 void router_load(void);
 void router_reload(void);
 const endpoint_t *router_search(const char *, int);

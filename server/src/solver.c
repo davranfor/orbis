@@ -33,35 +33,10 @@ enum
 };
 
 static sqlite3 *db;
+static int db_last_op;
 static sqlite3_stmt *auth;
 static session_t *session;
 static buffer_t buffer;
-
-static int db_load(const char *metadata)
-{
-    char *error = NULL;
-
-    if (sqlite3_exec(db, metadata, NULL, NULL, &error) != SQLITE_OK)
-    {
-        fprintf(stderr, "metadata:\n%s\n", error);
-        sqlite3_free(error);
-        return 0;
-    }
-
-    const endpoint_t *endpoint = router_search("GET /api/session", 0);
-
-    if ((endpoint == NULL) || (endpoint->stmt == NULL))
-    {
-        fprintf(stderr, "'GET /api/session' statement not found\n");
-        return 0;
-    }
-    if (sqlite3_prepare_v2(db, endpoint->stmt, -1, &auth, NULL) != SQLITE_OK)
-    {
-        fprintf(stderr, "session: %s\n", sqlite3_errmsg(db));
-        return 0;
-    }
-    return 1;
-}
 
 static void db_exec(const char *sql)
 {
@@ -75,6 +50,17 @@ static void db_exec(const char *sql)
     }
 }
 
+/**
+ * Custom SQL function: assert(condition, message). Sets no result
+ * (defaults to NULL) when 'condition' is truthy, and aborts the whole
+ * statement with 'message' as the SQL error otherwise. Meant as an
+ * early guard inside a WHERE clause, so @stmt can enforce invariants
+ * without an extra round trip to C:
+ *   SELECT TRUE WHERE assert(:a > :b, 'a must be greater than b') IS NULL;
+ * If you don't want to return a value (i.e. checking before a
+ * statement), simply use:
+ *   SELECT assert(:a > :b, 'a must be greater than b');
+ */
 static void db_assert(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
     if (argc != 2)
@@ -92,6 +78,17 @@ static void db_assert(sqlite3_context *context, int argc, sqlite3_value **argv)
     sqlite3_result_error(context, message ? message : "Aborted", -1);
 }
 
+/**
+ * Custom SQL function: new_token(user, role, token). Rebuilds this
+ * request's session — user, role, token, and its Set-Cookie header —
+ * via session_build(), and returns the resulting token as text so
+ * @stmt can store it directly:
+ *   UPDATE users SET token = new_token(id, role, token)
+ *   WHERE email = :email AND password = :password;
+ * Here 'token' is the row's own (pre-update) token column: empty means
+ * session_build() generates a fresh random one; non-empty means it's
+ * kept as-is, only 'user'/'role' and the cookie get refreshed.
+ */
 static void db_new_token(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
     if (argc != 3)
@@ -113,6 +110,13 @@ static void db_new_token(sqlite3_context *context, int argc, sqlite3_value **arg
     sqlite3_result_text(context, value, -1, SQLITE_STATIC);
 }
 
+/**
+ * Custom SQL function: delete_token(). Clears this request's session
+ * via session_clear() — token wiped, Set-Cookie header set to expire
+ * the cookie — and returns the (now empty) token as text, so @stmt can
+ * blank the stored one in the same statement:
+ *   UPDATE users SET token = delete_token() WHERE id = $USER;
+ */
 static void db_delete_token(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
     (void)argv;
@@ -124,6 +128,11 @@ static void db_delete_token(sqlite3_context *context, int argc, sqlite3_value **
     sqlite3_result_text(context, session_clear(session), -1, SQLITE_STATIC);
 }
 
+/**
+ * Custom SQL function: new_password(). Returns a random 8-character
+ * password as text (rand_password()), for @stmt to store or hand back
+ * to the caller. Not wired into any @stmt yet.
+ */
 static void db_new_password(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
     (void)argv;
@@ -141,6 +150,136 @@ static void db_new_password(sqlite3_context *context, int argc, sqlite3_value **
         return;
     }
     sqlite3_result_text(context, password, -1, SQLITE_TRANSIENT);
+}
+
+static int db_create_functions(void)
+{
+#define db_create_function(func, name, argc)                        \
+    do                                                              \
+    {                                                               \
+        if (SQLITE_OK != sqlite3_create_function(                   \
+            db, name, argc, SQLITE_UTF8, NULL, func, NULL, NULL))   \
+        {                                                           \
+            fprintf(stderr, "%s\n", sqlite3_errmsg(db));            \
+            return 0;                                               \
+        }                                                           \
+    } while (0)
+
+    db_create_function(db_assert, "assert", 2);
+    db_create_function(db_new_token, "new_token", 3);
+    db_create_function(db_delete_token, "delete_token", 0);
+    db_create_function(db_new_password, "new_password", 0);
+    return 1;
+}
+
+static struct { sqlite3_stmt **stmt; size_t size, room; } statements;
+
+/**
+ * Called once per endpoint by router_set_statements() (see db_load()),
+ * not per request. A single @stmt can hold several ';'-separated SQL
+ * statements: sqlite3_prepare_v2()'s last argument advances 'sql' past
+ * whatever it just compiled, so the while loop keeps preparing until
+ * nothing is left. Each prepared statement is appended to the 'statements'
+ * pool once and reused (reset, never finalized) on every future request;
+ * 'statement->offset'/'size' record where this endpoint's own statements
+ * landed in that pool. 'mode' becomes STATEMENT_MODE_WRITE as soon as any
+ * one of them isn't read-only, so handle_statement() knows whether to
+ * wrap the group in a transaction.
+ */
+static int db_set_statement(statement_t *statement)
+{
+    const char *sql = statement->sql;
+
+    while (sql && *sql)
+    {
+        sqlite3_stmt *stmt = NULL;
+        int prepared = sqlite3_prepare_v2(db, sql, -1, &stmt, &sql);
+
+        if ((prepared == SQLITE_OK) && (stmt == NULL))
+        {
+            continue;
+        }
+        if (prepared != SQLITE_OK)
+        {
+            fprintf(stderr, "%s\n", sqlite3_errmsg(db));
+            return 0;
+        }
+        if (statements.size == statements.room)
+        {
+            size_t room = statements.room ? statements.room * 2 : 1;
+            sqlite3_stmt **temp = realloc(statements.stmt, sizeof(*temp) * room);
+
+            if (temp == NULL)
+            {
+                sqlite3_finalize(stmt);
+                return 0;
+            }
+            statements.stmt = temp;
+            statements.room = room;
+        }
+        if (statement->offset == 0)
+        {
+            statement->offset = statements.size;
+        }
+        statement->size++;
+        statement->mode |= !sqlite3_stmt_readonly(stmt);
+        statements.stmt[statements.size++] = stmt;
+    }
+    return 1;
+}
+
+static void db_on_change(void *context, int op, const char *db_name,
+    const char *table, sqlite3_int64 rowid)
+{
+    (void)context;
+    (void)db_name;
+    (void)table;
+    (void)rowid;
+    db_last_op = op;
+}
+
+static int db_load(const char *metadata)
+{
+    char *error = NULL;
+
+    if (sqlite3_exec(db, metadata, NULL, NULL, &error) != SQLITE_OK)
+    {
+        fprintf(stderr, "metadata:\n%s\n", error);
+        sqlite3_free(error);
+        return 0;
+    }
+    if (!db_create_functions())
+    {
+        return 0;
+    }
+    if (!router_set_statements(db_set_statement))
+    {
+        return 0;
+    }
+    sqlite3_update_hook(db, db_on_change, NULL);
+
+    const endpoint_t *endpoint = router_search("GET /api/session", 0);
+
+    if ((endpoint == NULL) || (endpoint->statement.size == 0))
+    {
+        fprintf(stderr, "'GET /api/session' statement not found\n");
+        return 0;
+    }
+    auth = statements.stmt[endpoint->statement.offset];
+    return 1;
+}
+
+static void db_unload(void)
+{
+    for (size_t i = 0; i < statements.size; i++)
+    {
+        sqlite3_finalize(statements.stmt[i]);
+    }
+    free(statements.stmt);
+    statements.stmt = NULL;
+    statements.size = 0;
+    statements.room = 0;
+    sqlite3_close(db);
 }
 
 static void load(void)
@@ -171,29 +310,12 @@ static void load(void)
         exit(EXIT_FAILURE);
     }
     free(metadata);
-
-#define db_create_function(func, name, argc)                        \
-    do                                                              \
-    {                                                               \
-        if (SQLITE_OK != sqlite3_create_function(                   \
-            db, name, argc, SQLITE_UTF8, NULL, func, NULL, NULL))   \
-        {                                                           \
-            fprintf(stderr, "%s\n", sqlite3_errmsg(db));            \
-            exit(EXIT_FAILURE);                                     \
-        }                                                           \
-    } while (0)
-
-    db_create_function(db_assert, "assert", 2);
-    db_create_function(db_new_token, "new_token", 3);
-    db_create_function(db_delete_token, "delete_token", 0);
-    db_create_function(db_new_password, "new_password", 0);
 }
 
 static void unload(void)
 {
     buffer_clear(&buffer);
-    sqlite3_finalize(auth);
-    sqlite3_close(db);
+    db_unload();
 }
 
 void solver_load(void)
@@ -429,41 +551,33 @@ static int bind_session(sqlite3_stmt *stmt)
 }
 
 /**
- * A single @stmt can hold several ';'-separated SQL statements:
- * sqlite3_prepare_v2()'s last argument advances 'sql' past whatever it
- * just compiled, so the while loop keeps preparing/running/finalizing
- * until nothing is left. Only the first column of any SELECT rows is
- * collected, as raw text, straight into 'buffer' — endpoints.sql uses
- * SQLite's json_array()/json_group_array() so that text already is
- * the JSON response body, no separate encoding step needed here.
- * If nothing was ever written to 'buffer', sqlite3_total_changes()
- * tells GET-less requests (INSERT/UPDATE/DELETE with no SELECT) apart
- * from a real "nothing found" (see the caller).
+ * 'statement->offset'/'size' index into the 'statements' pool, already
+ * prepared once at load time by db_set_statement() — this only binds,
+ * steps and resets them, no prepare/finalize per request. Only the
+ * first column of any SELECT rows is collected, as raw text, straight
+ * into 'buffer' — endpoints.sql uses SQLite's json_array()/
+ * json_group_array() so that text already is the JSON response body,
+ * no separate encoding step needed here. 'db_last_op' (set by
+ * db_on_change(), the sqlite3_update_hook callback) records the last
+ * real INSERT/UPDATE/DELETE among the group; together with
+ * sqlite3_total_changes() it tells a write that changed nothing apart
+ * from a real "nothing found" (see the caller), and decides whether
+ * to answer 201 Created (last write was an INSERT) or 200 OK.
  */
-static int handle_stmt(const json_t *request, const char *path, const char *sql)
+static int handle_statement(const json_t *request, const statement_t *statement)
 {
-    enum { GET = 1, POST, PUT, PATCH, DELETE };
     int total_changes = sqlite3_total_changes(db);
-    int method = router_method(path);
+    sqlite3_stmt *stmt = NULL;
+    int error_status = 0;
 
-    if (method != GET)
+    if (statement->mode == STATEMENT_MODE_WRITE)
     {
         db_exec("BEGIN TRANSACTION;");
     }
-
-    sqlite3_stmt *stmt = NULL;
-    int error_status;
-
-    while (sql && *sql)
+    for (size_t i = 0; i < statement->size; i++)
     {
-        int prepared = sqlite3_prepare_v2(db, sql, -1, &stmt, &sql);
-
-        if ((prepared == SQLITE_OK) && (stmt == NULL))
-        {
-            continue;
-        }
-        if ((prepared != SQLITE_OK) ||
-            !bind_params(stmt, json_find(request, "params")) ||
+        stmt = statements.stmt[statement->offset + i];
+        if (!bind_params(stmt, json_find(request, "params")) ||
             !bind_content(stmt, json_find(request, "content")) ||
             !bind_session(stmt))
         {
@@ -472,6 +586,7 @@ static int handle_stmt(const json_t *request, const char *path, const char *sql)
             error_status = HTTP_INTERNAL_SERVER_ERROR;
             goto error;
         }
+        db_last_op = 0;
 
         int step;
 
@@ -491,39 +606,33 @@ static int handle_stmt(const json_t *request, const char *path, const char *sql)
             error_status = HTTP_BAD_REQUEST;
             goto error;
         }
-        sqlite3_finalize(stmt);
+        sqlite3_reset(stmt);
     }
-    if (method != GET)
+    if (statement->mode == STATEMENT_MODE_WRITE)
     {
         db_exec("COMMIT;");
     }
-    if (buffer.length == 0)
+    if ((buffer.length == 0) &&
+       ((db_last_op == 0) || (sqlite3_total_changes(db) - total_changes == 0)))
     {
-        if ((method == GET) || (sqlite3_total_changes(db) - total_changes == 0))
-        {
-            write_error("Not Found", "Resource not found");
-            return HTTP_NOT_FOUND;
-        }
+        write_error("Not Found", "Resource not found");
+        return HTTP_NOT_FOUND;
     }
-    return method == POST ? HTTP_CREATED : HTTP_OK;
+    return db_last_op == SQLITE_INSERT ? HTTP_CREATED : HTTP_OK;
 error:
-    sqlite3_finalize(stmt);
-    if (method != GET)
+    if (statement->mode == STATEMENT_MODE_WRITE)
     {
         db_exec("ROLLBACK;");
     }
+    sqlite3_reset(stmt);
     return error_status;
 }
 
-static int handle_task(const json_t *request, const char *path)
+static int handle_task(const char *path)
 {
     if (!strcmp(path, "GET /api/auth"))
     {
         return HTTP_OK;
-    }
-    if (!strcmp(path, "POST /api/exec"))
-    {
-        return handle_stmt(request, path, json_text(json_find(request, "content")));
     }
     if (!strcmp(path, "POST /api/backup"))
     {
@@ -596,15 +705,15 @@ static const endpoint_t *validate_request(const json_t *request,
     const endpoint_t *endpoint, int *status)
 {
     context_t context = { endpoint, status };
-    const void *code = endpoint->code;
+    const void *schema = endpoint->schema;
 
-    while (!json_validate(request, code, on_validate_request, &context))
+    while (!json_validate(request, schema, on_validate_request, &context))
     {
         if (context.endpoint == NULL)
         {
             return NULL;
         }
-        code = context.endpoint->code;
+        schema = context.endpoint->schema;
     }
     return context.endpoint;
 }
@@ -700,11 +809,8 @@ const buffer_t *solver_handle(const json_t *request, const char *path,
     {
         return solve_request(status);
     }
-
-    const char *stmt = endpoint->stmt;
-
-    return stmt != NULL
-        ? solve_request(handle_stmt(request, path, stmt))
-        : solve_request(handle_task(request, path));
+    return endpoint->statement.size
+        ? solve_request(handle_statement(request, &endpoint->statement))
+        : solve_request(handle_task(path));
 }
 

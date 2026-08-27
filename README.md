@@ -205,14 +205,17 @@ clean split: orbis owns the data and the rules, nginx owns everything that
 looks like "being a web server."
 
 Authentication uses opaque session tokens, not JWTs: `POST /api/login`
-generates a random 32-byte token (hex-encoded, via `new_token()`, a custom
-SQLite function backed by `session_build()`) and stores it in the `users`
-row, replacing whatever was there before — so logging in from a new place
-invalidates the old session. The token travels as an `HttpOnly`,
-`SameSite=Strict` cookie, and every request revalidates it with a plain
-lookup; there's nothing to decode or verify cryptographically, just a row
-that either matches or doesn't. `POST /api/logout` clears it via
-`delete_token()`.
+calls `new_token()` (a custom SQLite function backed by `session_build()`),
+which generates a random 32-byte token (hex-encoded) only if the `users`
+row doesn't already have one stored. Logging in again while a token is
+still there reuses it as-is — there's one token per account, not per
+device, so logging in from another browser doesn't invalidate the first
+session; both end up sharing the same cookie. `POST /api/logout` clears
+the stored token via `delete_token()`, which is currently the only way
+to force a fresh one on the next login. The token travels as an
+`HttpOnly`, `SameSite=Strict` cookie, and every request revalidates it
+with a plain lookup; there's nothing to decode or verify
+cryptographically, just a row that either matches or doesn't.
 
 ### Known limitations
 
