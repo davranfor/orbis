@@ -252,6 +252,18 @@ done:
     return *str ? str : NULL;
 }
 
+static int parse(char *str)
+{
+    while ((str = scan(str)))
+    {
+        if (str == FAILURE)
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 static int sort(const void *pa, const void *pb)
 {
     const endpoint_t *a = (const endpoint_t *)pa;
@@ -276,6 +288,8 @@ static int search(const void *pa, const void *pb)
 
 static void enumerate(void)
 {
+    qsort(router.endpoint, router.size, sizeof(endpoint_t), sort);
+
     endpoint_t *endpoint = router.endpoint;
 
     for (size_t i = 1; i < router.size; i++)
@@ -285,25 +299,6 @@ static void enumerate(void)
             endpoint[i].index = endpoint[i - 1].index + 1;
         }
     }
-}
-
-static int parse(char *str)
-{
-    while ((str = scan(str)))
-    {
-        if (str == FAILURE)
-        {
-            return 0;
-        }
-    }
-    if (router.size == 0)
-    {
-        fprintf(stderr, "Must contain at least one section\n");
-        return 0;
-    }
-    qsort(router.endpoint, router.size, sizeof(endpoint_t), sort);
-    enumerate();
-    return 1;
 }
 
 static char *buffer;
@@ -322,6 +317,7 @@ static void load(void)
     {
         exit(EXIT_FAILURE);
     }
+    enumerate();
 }
 
 static void unload(void)

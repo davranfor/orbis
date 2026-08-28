@@ -185,12 +185,13 @@ static int db_create_functions(void)
 static struct { sqlite3_stmt **stmt; size_t size, room; } statements;
 
 /**
- * Called once per endpoint by router_set_statements() (see db_load()),
- * not per request. A single @stmt can hold several ';'-separated SQL
- * statements: sqlite3_prepare_v2()'s last argument advances 'sql' past
- * whatever it just compiled, so the while loop keeps preparing until
- * nothing is left. Each prepared statement is appended to the 'statements'
- * pool once and reused (reset, never finalized) on every future request;
+ * Called once per endpoint by db_create_statement(), itself called once
+ * per endpoint via router_walk() (see db_create_statements()), not per
+ * request. A single @stmt can hold several ';'-separated SQL statements:
+ * sqlite3_prepare_v2()'s last argument advances 'sql' past whatever it
+ * just compiled, so the while loop keeps preparing until nothing is
+ * left. Each prepared statement is appended to the 'statements' pool
+ * once and reused (reset, never finalized) on every future request;
  * 'statement->offset'/'size' record where this endpoint's own statements
  * landed in that pool. 'mode' becomes STATEMENT_MODE_WRITE as soon as any
  * one of them isn't read-only, so handle_statement() knows whether to
@@ -263,25 +264,8 @@ static int db_load(const char *metadata)
         sqlite3_free(error);
         return 0;
     }
-    if (!db_create_functions())
-    {
-        return 0;
-    }
-    if (!db_create_statements())
-    {
-        return 0;
-    }
     sqlite3_update_hook(db, db_on_change, NULL);
-
-    const endpoint_t *endpoint = router_search("GET /api/session", 0);
-
-    if ((endpoint == NULL) || (endpoint->statement.size == 0))
-    {
-        fprintf(stderr, "'GET /api/session' statement not found\n");
-        return 0;
-    }
-    auth = statements.stmt[endpoint->statement.offset];
-    return 1;
+    return db_create_functions() && db_create_statements();
 }
 
 static void db_unload(void)
@@ -325,6 +309,15 @@ static void load(void)
         exit(EXIT_FAILURE);
     }
     free(metadata);
+
+    const endpoint_t *endpoint = router_search("GET /api/session", 0);
+
+    if ((endpoint == NULL) || (endpoint->statement.size == 0))
+    {
+        fprintf(stderr, "'GET /api/session' statement not found\n");
+        exit(EXIT_FAILURE);
+    }
+    auth = statements.stmt[endpoint->statement.offset];
 }
 
 static void unload(void)
