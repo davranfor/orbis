@@ -164,7 +164,7 @@ static void db_new_password(sqlite3_context *context, int argc, sqlite3_value **
 
 static int db_create_functions(void)
 {
-#define db_create_function(func, name, argc)                        \
+#define create_function(func, name, argc)                           \
     do                                                              \
     {                                                               \
         if (SQLITE_OK != sqlite3_create_function(                   \
@@ -175,10 +175,10 @@ static int db_create_functions(void)
         }                                                           \
     } while (0)
 
-    db_create_function(db_assert, "assert", 2);
-    db_create_function(db_new_token, "new_token", 3);
-    db_create_function(db_delete_token, "delete_token", 0);
-    db_create_function(db_new_password, "new_password", 0);
+    create_function(db_assert, "assert", 2);
+    create_function(db_new_token, "new_token", 3);
+    create_function(db_delete_token, "delete_token", 0);
+    create_function(db_new_password, "new_password", 0);
     return 1;
 }
 
