@@ -33,7 +33,7 @@ enum
 };
 
 static sqlite3 *db;
-static int db_last_op;
+static int db_command;
 static sqlite3_stmt *auth;
 static session_t *session;
 static buffer_t buffer;
@@ -48,6 +48,16 @@ static void db_exec(const char *sql)
         sqlite3_free(error);
         exit(EXIT_FAILURE);
     }
+}
+
+static void db_on_change(void *context, int command, const char *db_name,
+    const char *table, sqlite3_int64 rowid)
+{
+    (void)context;
+    (void)db_name;
+    (void)table;
+    (void)rowid;
+    db_command = command;
 }
 
 /**
@@ -186,7 +196,7 @@ static struct { sqlite3_stmt **stmt; size_t size, room; } statements;
  * one of them isn't read-only, so handle_statement() knows whether to
  * wrap the group in a transaction.
  */
-static int db_set_statement(statement_t *statement)
+static int create_statement(statement_t *statement)
 {
     const char *sql = statement->sql;
 
@@ -228,14 +238,19 @@ static int db_set_statement(statement_t *statement)
     return 1;
 }
 
-static void db_on_change(void *context, int op, const char *db_name,
-    const char *table, sqlite3_int64 rowid)
+static int db_create_statement(endpoint_t *endpoint)
 {
-    (void)context;
-    (void)db_name;
-    (void)table;
-    (void)rowid;
-    db_last_op = op;
+    if (!create_statement(&endpoint->statement))
+    {
+        fprintf(stderr, "Can't create '%s' statement\n", endpoint->path);
+        return 0;
+    }
+    return 1;
+}
+
+static int db_create_statements(void)
+{
+    return router_walk(db_create_statement);
 }
 
 static int db_load(const char *metadata)
@@ -252,7 +267,7 @@ static int db_load(const char *metadata)
     {
         return 0;
     }
-    if (!router_set_statements(db_set_statement))
+    if (!db_create_statements())
     {
         return 0;
     }
@@ -586,7 +601,7 @@ static int handle_statement(const json_t *request, const statement_t *statement)
             error_status = HTTP_INTERNAL_SERVER_ERROR;
             goto error;
         }
-        db_last_op = 0;
+        db_command = 0;
 
         int step;
 
@@ -613,12 +628,12 @@ static int handle_statement(const json_t *request, const statement_t *statement)
         db_exec("COMMIT;");
     }
     if ((buffer.length == 0) &&
-       ((db_last_op == 0) || (sqlite3_total_changes(db) - total_changes == 0)))
+       ((db_command == 0) || (sqlite3_total_changes(db) - total_changes == 0)))
     {
         write_error("Not Found", "Resource not found");
         return HTTP_NOT_FOUND;
     }
-    return db_last_op == SQLITE_INSERT ? HTTP_CREATED : HTTP_OK;
+    return db_command == SQLITE_INSERT ? HTTP_CREATED : HTTP_OK;
 error:
     if (statement->mode == STATEMENT_MODE_WRITE)
     {
@@ -684,9 +699,14 @@ static void on_validate_request(const json_t *node, void *data)
         {
             return;
         }
-        index > 0
-            ? write_error("Bad Request", "Missing or invalid parameters")
-            : write_fault("Bad Request", node);
+        if (index > 0)
+        {
+            write_error("Bad Request", "Missing or invalid parameters");
+        }
+        else
+        {
+            write_fault("Bad Request", node);
+        }
     }
     else if (!strncmp(path, "/session", 8))
     {

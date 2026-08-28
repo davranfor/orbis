@@ -95,19 +95,6 @@ unsigned router_methods(const char *path)
     return mask;
 }
 
-int router_set_statements(int (*callback)(statement_t *))
-{
-    for (size_t i = 0; i < router.size; i++)
-    {
-        if (!callback(&router.endpoint[i].statement))
-        {
-            fprintf(stderr, "Can't compile '%s' @stmt\n", router.endpoint[i].path);
-            return 0;
-        }
-    }
-    return 1;
-}
-
 enum { NONE = 0x0, PATH = 0x1, EVAL = 0x2, STMT = 0x4, DONE = 0x8 };
 
 static unsigned get_section(const char *str)
@@ -367,5 +354,17 @@ const endpoint_t *router_search(const char *path, int index)
     const endpoint_t endpoint = { .path = path, .index = index };
 
     return bsearch(&endpoint, router.endpoint, router.size, sizeof(endpoint_t), search);
+}
+
+int router_walk(int (*callback)(endpoint_t *))
+{
+    for (size_t i = 0; i < router.size; i++)
+    {
+        if (!callback(&router.endpoint[i]))
+        {
+            return 0;
+        }
+    }
+    return 1;
 }
 

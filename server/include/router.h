@@ -29,10 +29,10 @@ typedef struct
 
 int router_method(const char *);
 unsigned router_methods(const char *);
-int router_set_statements(int (*)(statement_t *));
 void router_load(void);
 void router_reload(void);
 const endpoint_t *router_search(const char *, int);
+int router_walk(int (*)(endpoint_t *));
 
 #endif
 
