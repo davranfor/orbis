@@ -288,10 +288,9 @@ static int search(const void *pa, const void *pb)
 
 static void enumerate(void)
 {
-    qsort(router.endpoint, router.size, sizeof(endpoint_t), sort);
-
     endpoint_t *endpoint = router.endpoint;
 
+    qsort(endpoint, router.size, sizeof *endpoint, sort);
     for (size_t i = 1; i < router.size; i++)
     {
         if (!strcmp(endpoint[i].path, endpoint[i - 1].path))
@@ -315,6 +314,11 @@ static void load(void)
     }
     if (!parse(buffer))
     {
+        exit(EXIT_FAILURE);
+    }
+    if (router.size == 0)
+    {
+        fprintf(stderr, "Empty endpoint list\n");
         exit(EXIT_FAILURE);
     }
     enumerate();
@@ -347,9 +351,9 @@ void router_reload(void)
 
 const endpoint_t *router_search(const char *path, int index)
 {
-    const endpoint_t endpoint = { .path = path, .index = index };
+    const endpoint_t key = { .path = path, .index = index };
 
-    return bsearch(&endpoint, router.endpoint, router.size, sizeof(endpoint_t), search);
+    return bsearch(&key, router.endpoint, router.size, sizeof key, search);
 }
 
 int router_walk(int (*callback)(endpoint_t *))
