@@ -111,9 +111,9 @@ static void db_new_token(sqlite3_context *context, int argc, sqlite3_value **arg
 
     int user = sqlite3_value_int(argv[0]);
     int role = sqlite3_value_int(argv[1]);
-    int days = sqlite3_value_int(argv[2]);
-    const char *token = (const char *)sqlite3_value_text(argv[3]);
-    const char *value = session_build(session, user, role, days, token);
+    const char *token = (const char *)sqlite3_value_text(argv[2]);
+    long long max_age = sqlite3_value_int(argv[3]) * 60 * 60 * 24;
+    const char *value = session_build(session, user, role, token, max_age);
 
     if (value == NULL)
     {

@@ -57,8 +57,8 @@ int session_parse(session_t *session, const char *path, char *str)
     return 0;
 }
 
-const char *session_build(session_t *session, int user, int role, int days,
-    const char *token)
+const char *session_build(session_t *session, int user, int role,
+    const char *token, long long max_age)
 {
     session->user = user;
     session->role = role;
@@ -95,13 +95,13 @@ const char *session_build(session_t *session, int user, int role, int days,
      */
     snprintf(session->cookie, COOKIE_SIZE,
         "Set-Cookie: session=%d:%d:%s; "
-        "Path=/; HttpOnly; SameSite=Strict; Max-Age=%ld\r\n",
-        session->user, session->role, session->token, 60L * 60L * 24L * days);
+        "Path=/; HttpOnly; SameSite=Strict; Max-Age=%lld\r\n",
+        session->user, session->role, session->token, max_age);
 #else
     snprintf(session->cookie, COOKIE_SIZE,
         "Set-Cookie: session=%d:%d:%s; "
-        "Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=%ld\r\n",
-        session->user, session->role, session->token, 60L * 60L * 24L * days);
+        "Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=%lld\r\n",
+        session->user, session->role, session->token, max_age);
 #endif
     return session->token;
 }
