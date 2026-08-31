@@ -89,17 +89,18 @@ static void db_assert(sqlite3_context *context, int argc, sqlite3_value **argv)
 }
 
 /**
- * Custom SQL function: new_token(user, role, days, token). Rebuilds
+ * Custom SQL function: new_token(user, role, token, days). Rebuilds
  * this request's session — user, role, token, and its Set-Cookie
  * header — via session_build(), and returns the resulting token as
  * text so @stmt can store it directly:
- *   UPDATE users SET token = new_token(id, role, 30, token)
+ *   UPDATE users SET token = new_token(id, role, token, 30)
  *   WHERE email = :email AND password = :password;
  * 'days' sets the cookie's Max-Age (30 above means the session expires
- * in 30 days). Here 'token' is the row's own (pre-update) token
- * column: empty means session_build() generates a fresh random one;
- * non-empty means it's kept as-is, only 'user'/'role', the expiry and
- * the cookie get refreshed.
+ * in 30 days) — converted to seconds here, since that's what
+ * session_build() expects. Here 'token' is the row's own (pre-update)
+ * token column: empty means session_build() generates a fresh random
+ * one; non-empty means it's kept as-is, only 'user'/'role', the expiry
+ * and the cookie get refreshed.
  */
 static void db_new_token(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
@@ -112,7 +113,7 @@ static void db_new_token(sqlite3_context *context, int argc, sqlite3_value **arg
     int user = sqlite3_value_int(argv[0]);
     int role = sqlite3_value_int(argv[1]);
     const char *token = (const char *)sqlite3_value_text(argv[2]);
-    long long max_age = sqlite3_value_int(argv[3]) * 60 * 60 * 24;
+    long long max_age = (long long)sqlite3_value_int(argv[3]) * 60 * 60 * 24;
     const char *value = session_build(session, user, role, token, max_age);
 
     if (value == NULL)
