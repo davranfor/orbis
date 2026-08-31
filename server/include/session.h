@@ -29,7 +29,7 @@ typedef struct
 } session_t;
 
 int session_parse(session_t *, const char *, char *);
-const char *session_build(session_t *, int, int, const char *, long long);
+const char *session_build(session_t *, int, int, const char *, int);
 const char *session_clear(session_t *);
 
 #endif
