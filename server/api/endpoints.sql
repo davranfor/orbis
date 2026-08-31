@@ -25,7 +25,7 @@ POST /api/login
 )
 -- @stmt
 UPDATE users
-SET token = new_token(id, role, token)
+SET token = new_token(id, role, 30, token) -- 30 = expire days
 WHERE email = :email AND password = :password;
 
 -- @path

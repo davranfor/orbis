@@ -57,7 +57,8 @@ int session_parse(session_t *session, const char *path, char *str)
     return 0;
 }
 
-const char *session_build(session_t *session, int user, int role, const char *token)
+const char *session_build(session_t *session, int user, int role, int days,
+    const char *token)
 {
     session->user = user;
     session->role = role;
@@ -90,17 +91,17 @@ const char *session_build(session_t *session, int user, int role, const char *to
      * CFLAGS += -DALLOW_INSECURE_TOKEN
      * endif
      * Depending on this flag, the 'Secure;' flag is sent or not to the client.
-     * Max-Age = 1 year
+     * Max-Age in seconds. i.e. 60 * 60 * 24 * 365 = 1 year
      */
     snprintf(session->cookie, COOKIE_SIZE,
         "Set-Cookie: session=%d:%d:%s; "
-        "Path=/; HttpOnly; SameSite=Strict; Max-Age=31536000\r\n",
-        session->user, session->role, session->token);
+        "Path=/; HttpOnly; SameSite=Strict; Max-Age=%ld\r\n",
+        session->user, session->role, session->token, 60L * 60L * 24L * days);
 #else
     snprintf(session->cookie, COOKIE_SIZE,
         "Set-Cookie: session=%d:%d:%s; "
-        "Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=31536000\r\n",
-        session->user, session->role, session->token);
+        "Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=%ld\r\n",
+        session->user, session->role, session->token, 60L * 60L * 24L * days);
 #endif
     return session->token;
 }

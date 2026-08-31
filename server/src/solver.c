@@ -89,28 +89,31 @@ static void db_assert(sqlite3_context *context, int argc, sqlite3_value **argv)
 }
 
 /**
- * Custom SQL function: new_token(user, role, token). Rebuilds this
- * request's session — user, role, token, and its Set-Cookie header —
- * via session_build(), and returns the resulting token as text so
- * @stmt can store it directly:
- *   UPDATE users SET token = new_token(id, role, token)
+ * Custom SQL function: new_token(user, role, days, token). Rebuilds
+ * this request's session — user, role, token, and its Set-Cookie
+ * header — via session_build(), and returns the resulting token as
+ * text so @stmt can store it directly:
+ *   UPDATE users SET token = new_token(id, role, 30, token)
  *   WHERE email = :email AND password = :password;
- * Here 'token' is the row's own (pre-update) token column: empty means
- * session_build() generates a fresh random one; non-empty means it's
- * kept as-is, only 'user'/'role' and the cookie get refreshed.
+ * 'days' sets the cookie's Max-Age (30 above means the session expires
+ * in 30 days). Here 'token' is the row's own (pre-update) token
+ * column: empty means session_build() generates a fresh random one;
+ * non-empty means it's kept as-is, only 'user'/'role', the expiry and
+ * the cookie get refreshed.
  */
 static void db_new_token(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
-    if (argc != 3)
+    if (argc != 4)
     {
-        sqlite3_result_error(context, "new_token() takes 3 arguments", -1);
+        sqlite3_result_error(context, "new_token() takes 4 arguments", -1);
         return;
     }
 
     int user = sqlite3_value_int(argv[0]);
     int role = sqlite3_value_int(argv[1]);
-    const char *token = (const char *)sqlite3_value_text(argv[2]);
-    const char *value = session_build(session, user, role, token);
+    int days = sqlite3_value_int(argv[2]);
+    const char *token = (const char *)sqlite3_value_text(argv[3]);
+    const char *value = session_build(session, user, role, days, token);
 
     if (value == NULL)
     {
@@ -176,7 +179,7 @@ static void db_new_password(sqlite3_context *context, int argc, sqlite3_value **
 static int db_create_functions(void)
 {
     db_create_function(db_assert, "assert", 2);
-    db_create_function(db_new_token, "new_token", 3);
+    db_create_function(db_new_token, "new_token", 4);
     db_create_function(db_delete_token, "delete_token", 0);
     db_create_function(db_new_password, "new_password", 0);
     return 1;
