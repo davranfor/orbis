@@ -1,5 +1,6 @@
 #!/bin/bash
 
 source "$(dirname -- "${BASH_SOURCE[0]}")/.env"
-exec stdbuf -oL -eL curl -fsSi -c "$COOKIES" -b "$COOKIES" -X POST "http://$SERVER_HOST/api/reload" -w "\n"
+exec stdbuf -oL -eL curl --fail-with-body -sSi -c "$COOKIES" -b "$COOKIES" \
+    -X POST "http://$SERVER_HOST/api/reload" -w "\n"
 
