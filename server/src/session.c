@@ -12,7 +12,7 @@
 
 /**
  * Parse cookie in the form:
- * Cookie: [third-party-cookie;] session=<int>:<int>:<hex 64 bytes> [third-party-cookie]
+ * Cookie: [third-party-cookie;] session=<int>:<int>:<hex 64 bytes>
  */
 int session_parse(session_t *session, const char *path, char *str)
 {
@@ -108,7 +108,7 @@ const char *session_build(session_t *session, int user, int role,
 const char *session_clear(session_t *session)
 {
     memset(session->token, 0, TOKEN_MAX_LENGTH);
-    snprintf(session->cookie, COOKIE_SIZE, "%s", COOKIE_CLEAR);
+    snprintf(session->cookie, COOKIE_SIZE, COOKIE_CLEAR);
     return session->token;
 }
 

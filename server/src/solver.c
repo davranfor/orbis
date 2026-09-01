@@ -67,8 +67,7 @@ static void db_on_change(void *context, int command, const char *db_name,
  * early guard inside a WHERE clause, so @stmt can enforce invariants
  * without an extra round trip to C:
  *   SELECT TRUE WHERE assert(:a > :b, 'a must be greater than b') IS NULL;
- * If you don't want to return a value (i.e. checking before a
- * statement), simply use:
+ * If you don't want to return a value:
  *   SELECT assert(:a > :b, 'a must be greater than b');
  */
 static void db_assert(sqlite3_context *context, int argc, sqlite3_value **argv)
@@ -93,7 +92,7 @@ static void db_assert(sqlite3_context *context, int argc, sqlite3_value **argv)
  * this request's session — user, role, token, and its Set-Cookie
  * header — via session_build(), and returns the resulting token as
  * text so @stmt can store it directly:
- *   UPDATE users SET token = new_token(id, role, token, 60 * 60 * 24 * 30)
+ *   UPDATE users SET token = new_token(id, role, token, 3600 * 24 * 30)
  *   WHERE email = :email AND password = :password;
  * 'max_age' sets the cookie's Max-Age in seconds — write it as an
  * expression (as above, 30 days) rather than a raw literal, so it stays
