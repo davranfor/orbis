@@ -111,7 +111,7 @@ static void db_new_token(sqlite3_context *context, int argc, sqlite3_value **arg
         return;
     }
 
-    const char *value = session_build(
+    const char *token = session_build(
         session,
         sqlite3_value_int(argv[0]),                 // user
         sqlite3_value_int(argv[1]),                 // role
@@ -119,12 +119,12 @@ static void db_new_token(sqlite3_context *context, int argc, sqlite3_value **arg
         sqlite3_value_int(argv[3])                  // max_age
     );
 
-    if (value == NULL)
+    if (token == NULL)
     {
         sqlite3_result_error(context, "new_token() failed", -1);
         return;
     }
-    sqlite3_result_text(context, value, -1, SQLITE_STATIC);
+    sqlite3_result_text(context, token, -1, SQLITE_STATIC);
 }
 
 /**

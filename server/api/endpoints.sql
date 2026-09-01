@@ -25,7 +25,7 @@ POST /api/login
 )
 -- @stmt
 UPDATE users
-SET token = new_token(id, role, token, 60 * 60 * 24 * 30) -- 30 days in seconds
+SET token = new_token(id, role, token, 3600 * 24 * 30) -- 30 days in seconds
 WHERE email = :email AND password = :password;
 
 -- @path
