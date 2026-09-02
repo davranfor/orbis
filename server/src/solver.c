@@ -407,7 +407,7 @@ static void write_error(const char *title, const char *issue)
         .size = 2
     };
 
-    json_buffer_encode(&buffer, &message, 2);
+    json_buffer_encode(&buffer, &message, 0);
 }
 
 static void write_fault(const char *title, const json_t *node)
@@ -423,7 +423,7 @@ static void write_fault(const char *title, const json_t *node)
         .size = 2
     };
 
-    json_buffer_encode(&buffer, &message, 2);
+    json_buffer_encode(&buffer, &message, 0);
 }
 #pragma GCC diagnostic pop
 

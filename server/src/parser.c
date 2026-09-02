@@ -61,7 +61,6 @@ int parser_status(const char *message, size_t length)
 typedef struct
 {
     char *path, *params, *content;
-    int content_is_parseable;
     session_t session;
 } request_t;
 
@@ -79,14 +78,7 @@ static const buffer_t *parse_headers(request_t *request, char *str)
     char *content = strstr(str, "\r\n\r\n") + 4;
 
     content[-2] = '\0';
-    if (*content != '\0')
-    {
-        if (strstr(str, "\r\nContent-Type: application/json\r\n"))
-        {
-            request->content_is_parseable = 1; 
-        }
-        request->content = content;
-    }
+    // Request must start with METHOD /api/...
     if (router_method(str) != 0)
     {
         char *end = strchr(strchr(str, ' ') + 1, ' ');
@@ -101,6 +93,10 @@ static const buffer_t *parse_headers(request_t *request, char *str)
         if (request->params != NULL)
         {
             *request->params++ = '\0';
+        }
+        if (*content != '\0')
+        {
+            request->content = content;
         }
         if (!session_parse(&request->session, str, end))
         {
@@ -243,12 +239,6 @@ static int parse_fields(request_t *request, json_t *fields)
     if (request->content == NULL)
     {
         fields->type = JSON_NULL;
-        return 1;
-    }
-    if (request->content_is_parseable == 0)
-    {
-        fields->string = request->content;
-        fields->type = JSON_STRING;
         return 1;
     }
     return json_parse(request->content, decode_fields, fields);
