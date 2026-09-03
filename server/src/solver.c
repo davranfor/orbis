@@ -210,16 +210,15 @@ static int create_statement(statement_t *statement)
     while (sql && *sql)
     {
         sqlite3_stmt *stmt = NULL;
-        int prepared = sqlite3_prepare_v2(db, sql, -1, &stmt, &sql);
 
-        if ((prepared == SQLITE_OK) && (stmt == NULL))
-        {
-            continue;
-        }
-        if (prepared != SQLITE_OK)
+        if (sqlite3_prepare_v2(db, sql, -1, &stmt, &sql) != SQLITE_OK)
         {
             fprintf(stderr, "%s\n", sqlite3_errmsg(db));
             return 0;
+        }
+        if (stmt == NULL)
+        {
+            continue;
         }
         if (statements.size == statements.room)
         {
@@ -260,6 +259,18 @@ static int db_create_statements(void)
     return router_walk(db_create_statement);
 }
 
+static void db_delete_statements(void)
+{
+    for (size_t i = 0; i < statements.size; i++)
+    {
+        sqlite3_finalize(statements.stmt[i]);
+    }
+    free(statements.stmt);
+    statements.stmt = NULL;
+    statements.size = 0;
+    statements.room = 0;
+}
+
 static int db_load(const char *metadata)
 {
     char *error = NULL;
@@ -276,14 +287,7 @@ static int db_load(const char *metadata)
 
 static void db_unload(void)
 {
-    for (size_t i = 0; i < statements.size; i++)
-    {
-        sqlite3_finalize(statements.stmt[i]);
-    }
-    free(statements.stmt);
-    statements.stmt = NULL;
-    statements.size = 0;
-    statements.room = 0;
+    db_delete_statements();
     sqlite3_close(db);
 }
 
@@ -309,12 +313,14 @@ static void load(void)
         perror("file_read");
         exit(EXIT_FAILURE);
     } 
-    if (!db_load(metadata))
+
+    int loaded = db_load(metadata);
+
+    free(metadata);
+    if (!loaded)
     {
-        free(metadata);
         exit(EXIT_FAILURE);
     }
-    free(metadata);
 
     const endpoint_t *endpoint = router_search("GET /api/session", 0);
 
@@ -336,6 +342,7 @@ void solver_load(void)
 {
     atexit(unload);
     load();
+
 }
 
 void solver_reload(void)
@@ -646,31 +653,31 @@ static int handle_task(const char *path)
 {
     if (!strcmp(path, "GET /api/auth"))
     {
-        return HTTP_OK;
+        // Authorized (Check config/orbis.conf)
     }
-    if (!strcmp(path, "POST /api/backup"))
+    else if (!strcmp(path, "POST /api/backup"))
     {
         file_delete("storage/backup.db");
         db_exec("VACUUM INTO 'storage/backup.db';");
-        return HTTP_OK;
     }
-    if (!strcmp(path, "POST /api/vacuum"))
+    else if (!strcmp(path, "POST /api/vacuum"))
     {
         db_exec("VACUUM;");
-        return HTTP_OK;
     }
-    if (!strcmp(path, "POST /api/reload"))
+    else if (!strcmp(path, "POST /api/reload"))
     {
         loader_reload();
-        return HTTP_OK;
     }
-    if (!strcmp(path, "POST /api/stop"))
+    else if (!strcmp(path, "POST /api/stop"))
     {
         raise(SIGINT);
-        return HTTP_OK;
     }
-    write_error("Internal Server Error", "Unhandled task");
-    return HTTP_INTERNAL_SERVER_ERROR;
+    else
+    {
+        write_error("Internal Server Error", "Unhandled task");
+        return HTTP_INTERNAL_SERVER_ERROR;
+    }
+    return HTTP_OK;
 }
 
 typedef struct { const endpoint_t *endpoint; int *status; } context_t;
@@ -694,17 +701,16 @@ static void on_validate_request(const json_t *node, void *data)
         int index = context->endpoint->index;
 
         context->endpoint = router_search(context->endpoint->path, index + 1);
-        if (context->endpoint != NULL)
+        if (context->endpoint == NULL)
         {
-            return;
-        }
-        if (index > 0)
-        {
-            write_error("Bad Request", "Missing or invalid parameters");
-        }
-        else
-        {
-            write_fault("Bad Request", node);
+            if (index > 0)
+            {
+                write_error("Bad Request", "Missing or invalid parameters");
+            }
+            else
+            {
+                write_fault("Bad Request", node);
+            }
         }
     }
     else if (!strncmp(path, "/session", 8))
