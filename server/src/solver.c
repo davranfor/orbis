@@ -423,8 +423,17 @@ static void write_fault(const char *title, const json_t *node)
     {
         .child = (json_t [])
         {
-            { .key = "title", .string = (char *)title, .type = JSON_STRING },
-            { .key = "issue", .child = node->child, .type = node->type, .size = node->size }
+            {
+                .key = "title",
+                .string = (char *)title,
+                .type = JSON_STRING
+            },
+            {
+                .key = "issue",
+                .child = node->child,
+                .type = node->type,
+                .size = node->size
+            }
         },
         .type = JSON_OBJECT,
         .size = 2
@@ -791,12 +800,6 @@ static const buffer_t *solve_request(int status)
             break;
     }
     buffer_insert(&buffer, 0, headers, strlen(headers));
-#ifdef DEBUG
-    if (buffer.length > 0)
-    {
-        puts(buffer.text);
-    }
-#endif
     return buffer.length ? &buffer : static_internal_server_error();
 }
 

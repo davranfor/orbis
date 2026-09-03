@@ -66,10 +66,6 @@ typedef struct
 
 static const buffer_t *parse_headers(request_t *request, char *str)
 {
-#ifdef DEBUG
-    puts(str);
-#endif
-
     /**
      * Cuts 'str' right after the blank line, so it ends there as its
      * own C string and router_method()/strstr() below never scan
