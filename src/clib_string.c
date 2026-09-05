@@ -80,15 +80,14 @@ char *string_search(const char *str, size_t max, const char *substr, size_t leng
     }
 
     const char *end = str + max - length + 1;
-    const char *ptr = str;
 
-    while ((ptr = memchr(ptr, substr[0], (size_t)(end - ptr))))
+    while ((str = memchr(str, substr[0], (size_t)(end - str))))
     {
-        if (!memcmp(ptr, substr, length))
+        if (!memcmp(str, substr, length))
         {
-            return (char *)ptr;
+            return (char *)str;
         }
-        ptr++;
+        str++;
     }
     return NULL;
 }
