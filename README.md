@@ -2,11 +2,9 @@
 
 A C library for Unix: JSON parsing, a schema validator with its own compact
 DSL, and a small set of general-purpose utilities (strings, buffers,
-hashmap, pattern matching, time handling, Unicode). It compiles without
-warnings under `-std=c11 -Wpedantic -Wall -Wextra -Wmissing-prototypes
--Wstrict-prototypes -Wconversion -Wshadow -Wcast-qual -Wnested-externs
--Wformat=2`, uses no compiler extensions, and runs clean under Valgrind:
-0 errors, 0 leaks.
+hashmap, pattern matching, time handling, Unicode). It compiles under C11
+with strict warnings, uses no compiler extensions, and runs clean under
+Valgrind: 0 errors, 0 leaks.
 
 ## Why
 
@@ -85,9 +83,7 @@ validation, a REST server on top. It's built to grow: new
 not bolted on as an afterthought. What exists today compiles without
 warnings, is covered by unit tests, and runs the demo server end to end.
 
-The server doesn't chase the throughput of something like
-[Drogon](https://github.com/drogonframework/drogon) or Go with goroutines
-and channels. It's single-threaded, one `poll()` loop, no worker pool — a
+The server is single-threaded, one `poll()` loop, no worker pool — a
 real ceiling: it runs on a single CPU core. What it optimizes for instead
 is a C programmer feeling at home: no green threads, no bespoke callback
 framework to learn, no macros hiding what a request actually does. For an
@@ -283,10 +279,15 @@ make
 ./server
 ```
 
-Default port is 8000 but you can start the server at a different one:
+Default port is 8000 (`SERVER_PORT` in `server/include/config.h`), but you
+can start the server at a different one:
 ```sh
 ./server 8001
 ```
+
+If you're fronting the server with the nginx config above, start it with
+`./server 8001` — nginx itself listens on 8000 and proxies `/api/` to
+8001, so leaving orbis on the default port collides with nginx.
 
 `server/scripts/` has small bash scripts (`login`, `get_users`,
 `insert_user`, `get_file`...) that drive the demo server end to end with
