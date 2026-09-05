@@ -70,20 +70,25 @@ char *string_vprint(const char *fmt, va_list args)
 #pragma GCC diagnostic ignored "-Wcast-qual"
 char *string_search(const char *str, size_t max, const char *substr, size_t length)
 {
-    if (length == 0)
-    {
-        return (char *)str;
-    }
     if (max < length)
     {
         return NULL;
     }
-    for (size_t i = 0; i <= max - length; i++)
+    if (length == 0)
     {
-        if ((str[i] == substr[0]) && !memcmp(str + i, substr, length))
+        return (char *)str;
+    }
+
+    const char *end = str + max - length + 1;
+    const char *ptr = str;
+
+    while ((ptr = memchr(ptr, substr[0], (size_t)(end - ptr))))
+    {
+        if (!memcmp(ptr, substr, length))
         {
-            return (char *)(str + i);
+            return (char *)ptr;
         }
+        ptr++;
     }
     return NULL;
 }
