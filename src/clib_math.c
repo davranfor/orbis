@@ -8,12 +8,6 @@
 #include <stdlib.h>
 #include "clib_math.h"
 
-/* Random value between 0 and range - 1 */
-int rand_range(int range)
-{
-    return (int)((double)range * (rand() / (RAND_MAX + 1.0)));
-}
-
 /* Reads 'size' cryptographically secure random bytes from /dev/urandom into 'buffer' */
 int rand_bytes(unsigned char *buffer, size_t size)
 {

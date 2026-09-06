@@ -17,7 +17,6 @@
 #define IS_SAFE_INTEGER(number) \
     (!(((number) < -9007199254740991.0) || ((number) > 9007199254740991.0)))
 
-int rand_range(int);
 int rand_bytes(unsigned char *, size_t);
 int rand_password(char *, size_t);
 uint64_t fnv1a_64(const char *, size_t);
