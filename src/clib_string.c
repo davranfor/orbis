@@ -23,21 +23,8 @@ char *string_clone(const char *str)
     return ptr;
 }
 
-/* Returns an allocated string using printf style */
-char *string_format(const char *fmt, ...)
-{
-    va_list args;
-
-    va_start(args, fmt);
-
-    char *str = string_vprint(fmt, args);
-
-    va_end(args);
-    return str;
-}
-
-/* Returns an allocated string using vprintf style */
-char *string_vprint(const char *fmt, va_list args)
+/* string_format helper */
+static char *format(const char *fmt, va_list args)
 {
     va_list copy;
 
@@ -59,6 +46,19 @@ char *string_vprint(const char *fmt, va_list args)
     {
         vsnprintf(str, size, fmt, args);
     }
+    return str;
+}
+
+/* Returns an allocated string using printf style */
+char *string_format(const char *fmt, ...)
+{
+    va_list args;
+
+    va_start(args, fmt);
+
+    char *str = format(fmt, args);
+
+    va_end(args);
     return str;
 }
 
@@ -117,20 +117,5 @@ size_t string_length(const char *str)
         }
     }
     return length;
-}
-
-/* Returns the number of characters matching 'chr' in a string */
-size_t string_count(const char *str, char chr)
-{
-    size_t count = 0;
-
-    for (; *str != '\0'; str++)
-    {
-        if (*str == chr)
-        {
-            count++;
-        }
-    }
-    return count;
 }
 
