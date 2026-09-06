@@ -23,41 +23,25 @@ char *string_clone(const char *str)
     return ptr;
 }
 
-/* string_format helper */
-static char *format(const char *fmt, va_list args)
-{
-    va_list copy;
-
-    va_copy(copy, args);
-
-    int bytes = vsnprintf(NULL, 0, fmt, copy);
-
-    va_end(copy);
-
-    if (bytes < 0)
-    {
-        return NULL;
-    }
-
-    size_t size = (size_t)bytes + 1;
-    char *str = malloc(size);
-
-    if (str != NULL)
-    {
-        vsnprintf(str, size, fmt, args);
-    }
-    return str;
-}
-
 /* Returns an allocated string using printf style */
 char *string_format(const char *fmt, ...)
 {
-    va_list args;
+    va_list args, copy;
 
     va_start(args, fmt);
+    va_copy(copy, args);
 
-    char *str = format(fmt, args);
+    int length = vsnprintf(NULL, 0, fmt, copy);
 
+    va_end(copy);
+
+    size_t size = (size_t)length + 1;
+    char *str = NULL;
+
+    if ((length >= 0) && (str = malloc(size)))
+    {
+        vsnprintf(str, size, fmt, args);
+    }
     va_end(args);
     return str;
 }
