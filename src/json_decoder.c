@@ -163,6 +163,14 @@ json_t *json_decode(char *str)
      * that child's own leaf children: offset + node[offset].size + 1 == total.
      * When true, at most two child pointers need to be wired: root's and,
      * if node[offset] is a non-empty container, its own.
+     *
+     * Always safe to index: root itself occupies slot 0, so offset (a
+     * count of root's children) is always < pool.size. If an earlier
+     * sibling isn't a leaf, offset lands inside *its* subtree instead of
+     * on the real last child, but then node[offset].size is some
+     * unrelated node's own child count, which can never coincidentally
+     * equal the total descendant count on the right — so the check
+     * safely fails closed onto the general path below.
      */
     unsigned offset = pool.node->size;
 
