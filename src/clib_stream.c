@@ -52,7 +52,7 @@ char *file_read(const char *path)
 {
     int fd = open(path, O_RDONLY);
 
-    if (fd < 0)
+    if (fd == -1)
     {
         return NULL;
     }
@@ -84,7 +84,7 @@ char *file_read_callback(const char *path, char *(*callback)(void *, size_t),
 {
     int fd = open(path, O_RDONLY);
 
-    if (fd < 0)
+    if (fd == -1)
     {
         return NULL;
     }

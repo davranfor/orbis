@@ -18,7 +18,7 @@ char *buffer_repeat(buffer_t *, char, size_t);
 char *buffer_insert(buffer_t *, size_t, const char *, size_t);
 char *buffer_append(buffer_t *, const char *, size_t);
 char *buffer_delete(buffer_t *, size_t, size_t);
-char *buffer_format(buffer_t *, const char *fmt, ...)
+char *buffer_format(buffer_t *, const char *, ...)
     __attribute__ ((format (printf, 2, 3)));
 char *buffer_write(buffer_t *, const char *);
 char *buffer_put(buffer_t *, char);
