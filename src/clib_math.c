@@ -72,10 +72,9 @@ size_t next_pow2(size_t number)
     number |= number >> 4;
     number |= number >> 8;
     number |= number >> 16;
-    if (sizeof(number) > 4)
-    {
-        number |= number >> 32;
-    }
+#if SIZE_MAX > UINT32_MAX
+    number |= number >> 32;
+#endif
     number += 1;
     return number;
 }
