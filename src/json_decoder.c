@@ -103,6 +103,7 @@ static json_t *fixup(const json_t *source, unsigned size)
         return NULL;
     }
     target[0] = source[0];
+    target[0].index = 0;
 
     unsigned reader = 0;
     unsigned writer = 1;
