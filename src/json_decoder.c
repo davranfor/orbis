@@ -173,13 +173,13 @@ json_t *json_decode(char *str)
      * equal the total descendant count on the right — so the check
      * safely fails closed onto the general path below.
      */
-    unsigned offset = pool.node->size;
+    unsigned offset = pool.node[0].size;
 
     if (pool.node[offset].size + offset + 1 == pool.size)
     {
-        if (pool.node->size > 0)
+        if (pool.node[0].size > 0)
         {
-            pool.node->child = &pool.node[1];
+            pool.node[0].child = &pool.node[1];
         }
         if (pool.node[offset].size > 0)
         {
