@@ -52,6 +52,10 @@ static int decode(const json_event_t *event)
         pool->node = node;
         pool->room = room;
     }
+    if (event->depth > 0)
+    {
+        pool->node[pool->depth[event->depth - 1]].size++;
+    }
     node = &pool->node[pool->size];
     node->key = event->key;
     switch (event->type)
@@ -72,10 +76,6 @@ static int decode(const json_event_t *event)
     node->type = event->type;
     node->size = 0;
     pool->size++;
-    if (event->depth > 0)
-    {
-        pool->node[pool->depth[event->depth - 1]].size++;
-    }
     return 1;
 }
 
@@ -154,36 +154,23 @@ json_t *json_decode(char *str)
     }
 
     /**
-     * Fast path — DFS and BFS layouts are identical when:
-     * - all of root's children except possibly the last are leaves, AND
-     * - the last child (if a container) has only leaf children.
+     * Fast path — DFS and BFS layouts are identical when the tree is
+     * flat: every node other than root is one of root's direct
+     * children (no grandchildren at all).
      *
-     * offset = root->size. In DFS pre-order, if the first offset-1 children
-     * of root are leaves they occupy positions 1..offset-1, so position offset
-     * is the last direct child. The condition verifies that nothing follows
-     * that child's own leaf children: offset + node[offset].size + 1 == total.
-     * When true, at most two child pointers need to be wired: root's and,
-     * if node[offset] is a non-empty container, its own.
-     *
-     * Always safe to index: root itself occupies slot 0, so offset (a
-     * count of root's children) is always < pool.size. If an earlier
-     * sibling isn't a leaf, offset lands inside *its* subtree instead of
-     * on the real last child, but then node[offset].size is some
-     * unrelated node's own child count, which can never coincidentally
-     * equal the total descendant count on the right — so the check
-     * safely fails closed onto the general path below.
+     * pool.node[0].size is root's own child count; pool.size - 1 is
+     * every other node in the tree. They can only be equal if none of
+     * root's children have children of their own — any nested
+     * container would add nodes to pool.size that root.size doesn't
+     * count, making pool.size - 1 strictly greater. When true, DFS
+     * pre-order already lists root's children contiguously starting
+     * at index 1, so the only pointer left to wire is root's own.
      */
-    unsigned offset = pool.node[0].size;
-
-    if (pool.node[offset].size + offset + 1 == pool.size)
+    if (pool.node[0].size == pool.size - 1)
     {
         if (pool.node[0].size > 0)
         {
             pool.node[0].child = &pool.node[1];
-        }
-        if (pool.node[offset].size > 0)
-        {
-            pool.node[offset].child = &pool.node[offset + 1];
         }
         return pool.node;
     }
