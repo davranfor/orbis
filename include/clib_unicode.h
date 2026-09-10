@@ -56,13 +56,80 @@ static inline int is_space(int c)
     return (c == ' ') || (c == '\n') || (c == '\r') || (c == '\t');
 }
 
-int is_esc(const char *);
-char decode_esc(const char *);
-char encode_esc(const char *);
-int is_hex(const char *);
+static inline int is_esc(const char *str)
+{
+    switch (*str)
+    {
+        case '\\':
+        case '/' :
+        case '"' :
+        case 'b' :
+        case 'f' :
+        case 'n' :
+        case 'r' :
+        case 't' :
+            return 1;
+        default  :
+            return 0;
+    }
+}
+
+static inline char decode_esc(const char *str)
+{
+    switch (*str)
+    {
+        case 'b': return '\b';
+        case 'f': return '\f';
+        case 'n': return '\n';
+        case 'r': return '\r';
+        case 't': return '\t';
+        default : return *str;
+    }
+}
+
+static inline char encode_esc(const char *str)
+{
+    switch (*str)
+    {
+        case '\b': return 'b';
+        case '\f': return 'f';
+        case '\n': return 'n';
+        case '\r': return 'r';
+        case '\t': return 't';
+        case '\"': return '"';
+        case '\\': return '\\';
+        default  : return '\0';
+    }
+}
+
+static inline int is_hex(const char *str)
+{
+    return (('u') == str[0])
+        && is_xdigit(str[1])
+        && is_xdigit(str[2])
+        && is_xdigit(str[3])
+        && is_xdigit(str[4]);
+}
+
+static inline int hex_to_dec(int c)
+{
+    if ((c >= '0') && (c <= '9'))
+    {
+        return c - '0';
+    }
+    if ((c >= 'A') && (c <= 'F'))
+    {
+        return c - 'A' + 10;
+    }
+    if ((c >= 'a') && (c <= 'f'))
+    {
+        return c - 'a' + 10;
+    }
+    return -1;
+}
+
 size_t decode_hex(const char *, char *);
 size_t encode_hex(const char *, char *);
-int hex_to_dec(int);
 
 #endif
 

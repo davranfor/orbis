@@ -9,65 +9,6 @@
 #include <string.h>
 #include "clib_unicode.h"
 
-/* Returns 1 on escape code, 0 otherwise */
-int is_esc(const char *str)
-{
-    switch (*str)
-    {
-        case '\\':
-        case '/' :
-        case '"' :
-        case 'b' :
-        case 'f' :
-        case 'n' :
-        case 'r' :
-        case 't' :
-            return 1;
-        default  :
-            return 0;
-    }
-}
-
-/* Decodes escape code and return its value */
-char decode_esc(const char *str)
-{
-    switch (*str)
-    {
-        case 'b': return '\b';
-        case 'f': return '\f';
-        case 'n': return '\n';
-        case 'r': return '\r';
-        case 't': return '\t';
-        default : return *str;
-    }
-}
-
-/* Converts escape to char */
-char encode_esc(const char *str)
-{
-    switch (*str)
-    {
-        case '\b': return 'b';
-        case '\f': return 'f';
-        case '\n': return 'n';
-        case '\r': return 'r';
-        case '\t': return 't';
-        case '\"': return '"';
-        case '\\': return '\\';
-        default  : return '\0';
-    }
-}
-
-/* Returns 1 on unicode escape sequence, 0 otherwise */
-int is_hex(const char *str)
-{
-    return (('u') == str[0])
-        && is_xdigit(str[1])
-        && is_xdigit(str[2])
-        && is_xdigit(str[3])
-        && is_xdigit(str[4]);
-}
-
 /**
  * Converts a JSON \uXXXX escape sequence to a UTF-8 multibyte sequence
  * Returns the length of the multibyte in bytes. Inverse: encode_hex()
@@ -149,22 +90,5 @@ size_t encode_hex(const char *str, char *buf)
     }
     snprintf(buf, sizeof("\\u0123"), "\\u%04x", hex);
     return length;
-}
-
-int hex_to_dec(int c)
-{
-    if ((c >= '0') && (c <= '9'))
-    {
-        return c - '0';
-    }
-    if ((c >= 'A') && (c <= 'F'))
-    {
-        return c - 'A' + 10;
-    }
-    if ((c >= 'a') && (c <= 'f'))
-    {
-        return c - 'a' + 10;
-    }
-    return -1;
 }
 
