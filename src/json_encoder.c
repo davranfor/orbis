@@ -79,7 +79,7 @@ static char *write_string(buffer_t *buffer, const char *str)
             buffer_append(buffer, seq, 2);
             ptr = ++str;
         }
-        else if (is_cntrl(*str) || ((encoding == JSON_ASCII) && !is_ascii(*str)))
+        else if (encoding == JSON_ASCII ? !is_print(*str) : is_cntrl(*str))
         {
             char seq[sizeof("\\u0123")] = { '\0' };
             size_t length = encode_hex(str, seq);
