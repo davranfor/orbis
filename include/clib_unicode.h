@@ -10,6 +10,7 @@
 #include <stddef.h>
 
 #define is_lead(c) (((c) & 0xc0) != 0x80)
+#define is_cont(c) (((c) & 0xc0) == 0x80)
 
 static inline int is_cntrl(int c)
 {
