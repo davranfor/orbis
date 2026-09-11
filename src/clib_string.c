@@ -80,7 +80,7 @@ char *string_search(const char *str, size_t max, const char *substr, size_t leng
 /* Truncates str at a valid UTF-8 boundary at or before length */ 
 size_t string_truncate(char *str, size_t length)
 {
-    while ((length > 0) && !is_utf8(str[length]))
+    while ((length > 0) && !is_lead(str[length]))
     {
         length--;
     }
@@ -95,7 +95,7 @@ size_t string_length(const char *str)
 
     for (; *str != '\0'; str++)
     {
-        if (is_utf8(*str))
+        if (is_lead(*str))
         {
             length++;
         }

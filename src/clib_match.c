@@ -255,7 +255,7 @@ int test_is_email(const char *str)
     // Max. 63 UTF8 chars in the local part
     while ((*str != '@') && (*str != '\0'))
     {
-        if (is_utf8(*str) && (mbs++ == 63))
+        if (is_lead(*str) && (mbs++ == 63))
         {
             return 0;
         }

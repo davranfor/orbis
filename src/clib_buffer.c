@@ -174,7 +174,7 @@ char *buffer_truncate(buffer_t *buffer, size_t length)
 {
     if ((length <= buffer->length) && (buffer->text != NULL))
     {
-        while ((length > 0) && !is_utf8(buffer->text[length]))
+        while ((length > 0) && !is_lead(buffer->text[length]))
         {
             length--;
         }

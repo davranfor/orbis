@@ -9,7 +9,7 @@
 
 #include <stddef.h>
 
-#define is_utf8(c) (((c) & 0xc0) != 0x80)
+#define is_lead(c) (((c) & 0xc0) != 0x80)
 
 static inline int is_cntrl(int c)
 {
