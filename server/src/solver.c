@@ -605,7 +605,8 @@ static int handle_statement(const json_t *request, const statement_t *statement)
     {
         if (!db_exec("BEGIN TRANSACTION;"))
         {
-            goto server_error;
+            error_status = HTTP_INTERNAL_SERVER_ERROR;
+            goto error;
         }
     }
     for (size_t i = 0; i < statement->size; i++)
@@ -615,7 +616,8 @@ static int handle_statement(const json_t *request, const statement_t *statement)
             !bind_content(stmt, json_find(request, "content")) ||
             !bind_session(stmt))
         {
-            goto server_error;
+            error_status = HTTP_INTERNAL_SERVER_ERROR;
+            goto error;
         }
         db_command = 0;
 
@@ -632,8 +634,6 @@ static int handle_statement(const json_t *request, const statement_t *statement)
         }
         if (step != SQLITE_DONE)
         {
-            buffer_reset(&buffer);
-            write_error("Bad Request", sqlite3_errmsg(db));
             error_status = HTTP_BAD_REQUEST;
             goto error;
         }
@@ -643,21 +643,30 @@ static int handle_statement(const json_t *request, const statement_t *statement)
     {
         if (!db_exec("COMMIT;"))
         {
-            goto server_error;
+            error_status = HTTP_INTERNAL_SERVER_ERROR;
+            goto error;
         }
     }
-    if ((buffer.length == 0) &&
-       ((db_command == 0) || (sqlite3_total_changes(db) - total_changes == 0)))
+    if (buffer.length == 0)
     {
-        write_error("Not Found", "Resource not found");
-        return HTTP_NOT_FOUND;
+        if (!db_command || (sqlite3_total_changes(db) - total_changes == 0))
+        {
+            write_error("Not Found", "Resource not found");
+            return HTTP_NOT_FOUND;
+        }
     }
     return db_command == SQLITE_INSERT ? HTTP_CREATED : HTTP_OK;
-server_error:
-    buffer_reset(&buffer);
-    write_error("Internal Server Error", sqlite3_errmsg(db));
-    error_status = HTTP_INTERNAL_SERVER_ERROR;
 error:
+    buffer_reset(&buffer);
+    switch (error_status)
+    {
+        case HTTP_BAD_REQUEST:
+            write_error("Bad Request", sqlite3_errmsg(db));
+            break;
+        case HTTP_INTERNAL_SERVER_ERROR:
+            write_error("Internal Server Error", sqlite3_errmsg(db));
+            break;
+    }
     if (statement->mode == STATEMENT_MODE_WRITE)
     {
         db_exec("ROLLBACK;");
