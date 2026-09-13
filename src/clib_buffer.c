@@ -169,7 +169,6 @@ char *buffer_put(buffer_t *buffer, char chr)
     return buffer->text;
 }
 
-/* Steps back over a split multi-byte UTF-8 sequence before cutting */
 char *buffer_truncate(buffer_t *buffer, size_t length)
 {
     if ((length <= buffer->length) && (buffer->text != NULL))

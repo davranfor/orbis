@@ -88,7 +88,7 @@ size_t string_truncate(char *str, size_t length)
     return length;
 }
 
-/* Returns the number of multibytes of a string */
+/* Returns the number of leading bytes of a string */
 size_t string_length(const char *str)
 {
     size_t length = 0;
