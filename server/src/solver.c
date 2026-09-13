@@ -40,12 +40,9 @@ static buffer_t buffer;
 
 static int db_exec(const char *sql)
 {
-    char *error = NULL;
-
-    if (sqlite3_exec(db, sql, NULL, NULL, &error) != SQLITE_OK)
+    if (sqlite3_exec(db, sql, NULL, NULL, NULL) != SQLITE_OK)
     {
-        fprintf(stderr, "%s\n", error);
-        sqlite3_free(error);
+        fprintf(stderr, "%s\n", sqlite3_errmsg(db));
         return 0;
     }
     return 1;
@@ -274,12 +271,8 @@ static void db_delete_statements(void)
 
 static int db_load(const char *metadata)
 {
-    char *error = NULL;
-
-    if (sqlite3_exec(db, metadata, NULL, NULL, &error) != SQLITE_OK)
+    if (!db_exec(metadata))
     {
-        fprintf(stderr, "metadata:\n%s\n", error);
-        sqlite3_free(error);
         return 0;
     }
     sqlite3_update_hook(db, db_on_change, NULL);
@@ -616,6 +609,7 @@ static int handle_statement(const json_t *request, const statement_t *statement)
             !bind_content(stmt, json_find(request, "content")) ||
             !bind_session(stmt))
         {
+            fprintf(stderr, "%s\n", sqlite3_errmsg(db));
             error_status = HTTP_INTERNAL_SERVER_ERROR;
             goto error;
         }
@@ -665,7 +659,6 @@ error:
             break;
         case HTTP_INTERNAL_SERVER_ERROR:
             write_error("Internal Server Error", sqlite3_errmsg(db));
-            fprintf(stderr, "%s\n", sqlite3_errmsg(db));
             break;
     }
     if (statement->mode == STATEMENT_MODE_WRITE)
