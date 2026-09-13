@@ -336,7 +336,6 @@ void solver_load(void)
 {
     atexit(unload);
     load();
-
 }
 
 void solver_reload(void)
