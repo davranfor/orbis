@@ -38,7 +38,7 @@ static sqlite3_stmt *auth;
 static session_t *session;
 static buffer_t buffer;
 
-static void db_exec(const char *sql)
+static int db_exec(const char *sql)
 {
     char *error = NULL;
 
@@ -46,7 +46,9 @@ static void db_exec(const char *sql)
     {
         fprintf(stderr, "%s\n", error);
         sqlite3_free(error);
+        return 0;
     }
+    return 1;
 }
 
 static void db_on_change(void *context, int command, const char *db_name,
@@ -601,7 +603,10 @@ static int handle_statement(const json_t *request, const statement_t *statement)
 
     if (statement->mode == STATEMENT_MODE_WRITE)
     {
-        db_exec("BEGIN TRANSACTION;");
+        if (!db_exec("BEGIN TRANSACTION;"))
+        {
+            goto server_error;
+        }
     }
     for (size_t i = 0; i < statement->size; i++)
     {
@@ -610,10 +615,7 @@ static int handle_statement(const json_t *request, const statement_t *statement)
             !bind_content(stmt, json_find(request, "content")) ||
             !bind_session(stmt))
         {
-            buffer_reset(&buffer);
-            write_error("Internal Server Error", sqlite3_errmsg(db));
-            error_status = HTTP_INTERNAL_SERVER_ERROR;
-            goto error;
+            goto server_error;
         }
         db_command = 0;
 
@@ -639,7 +641,10 @@ static int handle_statement(const json_t *request, const statement_t *statement)
     }
     if (statement->mode == STATEMENT_MODE_WRITE)
     {
-        db_exec("COMMIT;");
+        if (!db_exec("COMMIT;"))
+        {
+            goto server_error;
+        }
     }
     if ((buffer.length == 0) &&
        ((db_command == 0) || (sqlite3_total_changes(db) - total_changes == 0)))
@@ -648,6 +653,10 @@ static int handle_statement(const json_t *request, const statement_t *statement)
         return HTTP_NOT_FOUND;
     }
     return db_command == SQLITE_INSERT ? HTTP_CREATED : HTTP_OK;
+server_error:
+    buffer_reset(&buffer);
+    write_error("Internal Server Error", sqlite3_errmsg(db));
+    error_status = HTTP_INTERNAL_SERVER_ERROR;
 error:
     if (statement->mode == STATEMENT_MODE_WRITE)
     {
@@ -665,9 +674,8 @@ static int handle_task(const char *path)
     }
     else if (!strcmp(path, "POST /api/backup"))
     {
-        file_delete("storage/backup.db")
-            ? db_exec("VACUUM INTO 'storage/backup.db';")
-            : perror("file_delete");
+        file_delete("storage/backup.db");
+        db_exec("VACUUM INTO 'storage/backup.db';");
     }
     else if (!strcmp(path, "POST /api/vacuum"))
     {
