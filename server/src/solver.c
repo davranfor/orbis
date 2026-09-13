@@ -46,7 +46,6 @@ static void db_exec(const char *sql)
     {
         fprintf(stderr, "%s\n", error);
         sqlite3_free(error);
-        exit(EXIT_FAILURE);
     }
 }
 
@@ -666,8 +665,9 @@ static int handle_task(const char *path)
     }
     else if (!strcmp(path, "POST /api/backup"))
     {
-        file_delete("storage/backup.db");
-        db_exec("VACUUM INTO 'storage/backup.db';");
+        file_delete("storage/backup.db")
+            ? db_exec("VACUUM INTO 'storage/backup.db';")
+            : perror("file_delete");
     }
     else if (!strcmp(path, "POST /api/vacuum"))
     {
