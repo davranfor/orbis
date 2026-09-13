@@ -271,12 +271,12 @@ static void db_delete_statements(void)
 
 static int db_load(const char *metadata)
 {
-    if (!db_exec(metadata))
+    if (db_exec(metadata) && db_create_functions() && db_create_statements())
     {
-        return 0;
+        sqlite3_update_hook(db, db_on_change, NULL);
+        return 1;
     }
-    sqlite3_update_hook(db, db_on_change, NULL);
-    return db_create_functions() && db_create_statements();
+    return 0;
 }
 
 static void db_unload(void)
