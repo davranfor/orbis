@@ -195,10 +195,6 @@ static char *scan(char *str)
                 blank = 1;
                 break;
             case '\0':
-                if ((sections == NONE) && (start == NULL))
-                {
-                    return NULL;
-                }
                 goto scanner;
             case '-':
                 if (blank && !strncmp(str, "-- @", 4))
@@ -314,11 +310,6 @@ static void load(void)
     }
     if (!parse(buffer))
     {
-        exit(EXIT_FAILURE);
-    }
-    if (router.size == 0)
-    {
-        fprintf(stderr, "Empty endpoint list\n");
         exit(EXIT_FAILURE);
     }
     enumerate();
