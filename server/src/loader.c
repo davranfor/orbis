@@ -4,22 +4,21 @@
  *  \copyright GNU General Public License v3 or later.
  */
 
-#include "router.h"
 #include "static.h"
+#include "router.h"
 #include "solver.h"
 #include "loader.h"
 
 void loader_load(void)
 {
-    router_load();
     static_load();
+    router_load();
     solver_load();
 }
 
 void loader_reload(void)
 {
     router_reload();
-    static_reload();
     solver_reload();
 }
 

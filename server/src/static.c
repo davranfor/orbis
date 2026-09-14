@@ -53,12 +53,6 @@ void static_load(void)
     load();
 }
 
-void static_reload(void)
-{
-    unload();
-    load();
-}
-
 const buffer_t *static_bad_request(void)
 {
     return &bad_request;
