@@ -166,7 +166,7 @@ static void db_new_password(sqlite3_context *context, int argc, sqlite3_value **
     sqlite3_result_text(context, password, -1, SQLITE_TRANSIENT);
 }
 
-#define db_create_function(func, name, argc)                        \
+#define create_function(func, name, argc)                           \
     do                                                              \
     {                                                               \
         if (SQLITE_OK != sqlite3_create_function(                   \
@@ -177,21 +177,19 @@ static void db_new_password(sqlite3_context *context, int argc, sqlite3_value **
         }                                                           \
     } while (0)
 
-static int db_create_functions(void)
+static int create_functions(void)
 {
-    db_create_function(db_assert, "assert", 2);
-    db_create_function(db_new_token, "new_token", 4);
-    db_create_function(db_delete_token, "delete_token", 0);
-    db_create_function(db_new_password, "new_password", 0);
+    create_function(db_assert, "assert", 2);
+    create_function(db_new_token, "new_token", 4);
+    create_function(db_delete_token, "delete_token", 0);
+    create_function(db_new_password, "new_password", 0);
     return 1;
 }
 
 static struct { sqlite3_stmt **stmt; size_t size, room; } statements;
 
 /**
- * Called once per endpoint by db_create_statement(), itself called once
- * per endpoint via router_walk() (see db_create_statements()), not per
- * request. A single @stmt can hold several ';'-separated SQL statements:
+ * A single @stmt can hold several ';'-separated SQL statements:
  * sqlite3_prepare_v2()'s last argument advances 'sql' past whatever it
  * just compiled, so the while loop keeps preparing until nothing is
  * left. Each prepared statement is appended to the 'statements' pool
@@ -242,7 +240,7 @@ static int create_statement(statement_t *statement)
     return 1;
 }
 
-static int db_create_statement(endpoint_t *endpoint)
+static int create_statements_walker(endpoint_t *endpoint)
 {
     if (!create_statement(&endpoint->statement))
     {
@@ -252,12 +250,12 @@ static int db_create_statement(endpoint_t *endpoint)
     return 1;
 }
 
-static int db_create_statements(void)
+static int create_statements(void)
 {
-    return router_walk(db_create_statement);
+    return router_walk(create_statements_walker);
 }
 
-static void db_delete_statements(void)
+static void delete_statements(void)
 {
     for (size_t i = 0; i < statements.size; i++)
     {
@@ -267,22 +265,6 @@ static void db_delete_statements(void)
     statements.stmt = NULL;
     statements.size = 0;
     statements.room = 0;
-}
-
-static int db_load(const char *metadata)
-{
-    if (db_exec(metadata) && db_create_functions() && db_create_statements())
-    {
-        sqlite3_update_hook(db, db_on_change, NULL);
-        return 1;
-    }
-    return 0;
-}
-
-static void db_unload(void)
-{
-    db_delete_statements();
-    sqlite3_close(db);
 }
 
 static void load(void)
@@ -300,18 +282,18 @@ static void load(void)
 
     printf("Loading '%s'\n", path_sql);
 
-    char *metadata = file_read(path_sql);
+    char *sql = file_read(path_sql);
 
-    if (metadata == NULL)
+    if (sql == NULL)
     {
         perror("file_read");
         exit(EXIT_FAILURE);
     } 
 
-    int loaded = db_load(metadata);
+    int done = db_exec(sql) && create_functions() && create_statements();
 
-    free(metadata);
-    if (!loaded)
+    free(sql);
+    if (!done)
     {
         exit(EXIT_FAILURE);
     }
@@ -324,12 +306,14 @@ static void load(void)
         exit(EXIT_FAILURE);
     }
     auth = statements.stmt[endpoint->statement.offset];
+    sqlite3_update_hook(db, db_on_change, NULL);
 }
 
 static void unload(void)
 {
     buffer_clear(&buffer);
-    db_unload();
+    delete_statements();
+    sqlite3_close(db);
 }
 
 void solver_load(void)
@@ -575,7 +559,7 @@ static int bind_session(sqlite3_stmt *stmt)
 
 /**
  * 'statement->offset'/'size' index into the 'statements' pool, already
- * prepared once at load time by db_set_statement() — this only binds,
+ * prepared once at load time by create_statement() — this only binds,
  * steps and resets them, no prepare/finalize per request. Only the
  * first column of any SELECT rows is collected, as raw text, straight
  * into 'buffer' — endpoints.sql uses SQLite's json_array()/
