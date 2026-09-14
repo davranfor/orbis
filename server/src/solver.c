@@ -17,8 +17,8 @@
 #include <sqlite3.h>
 #include "headers.h"
 #include "loader.h"
-#include "router.h"
 #include "static.h"
+#include "router.h"
 #include "solver.h"
 
 enum

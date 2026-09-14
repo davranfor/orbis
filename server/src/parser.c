@@ -12,11 +12,10 @@
 #include <orbis/json_private.h>
 #include <orbis/json_header.h>
 #include <orbis/json_parser.h>
-#include "headers.h"
 #include "session.h"
 #include "config.h"
-#include "router.h"
 #include "static.h"
+#include "router.h"
 #include "solver.h"
 #include "parser.h"
 
